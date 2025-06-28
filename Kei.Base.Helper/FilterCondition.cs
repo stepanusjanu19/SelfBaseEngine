@@ -1,31 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Kei.Base.Extensions;
 using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Kei.Base.Helper
 {
-    public enum FilterOperator
-    {
-        Equal,
-        NotEqual,
-        Contains,
-        StartsWith,
-        EndsWith,
-        GreaterThan,
-        GreaterThanOrEqual,
-        LessThan,
-        LessThanOrEqual,
-        In,
-        NotIn,
-        IsNull,
-        IsNotNull,
-        Between,
-        NotLike
-    }
-
     public class FilterCondition<TEntity>
     {
         public Expression<Func<TEntity, object>> PropertyExpression { get; set; }

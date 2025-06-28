@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Kei.Base.Domain.Repository
 {
-    public abstract class BaseRepository<TEntity> : BaseFunctions<TEntity> where TEntity : class
+    public abstract class BaseRepository<TEntity> : BaseFunctions<TEntity>, IBaseRepository<TEntity> where TEntity : class
     {
         protected BaseRepository(DbContext context) 
             : base(context)

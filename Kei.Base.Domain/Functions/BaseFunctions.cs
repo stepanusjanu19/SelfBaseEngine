@@ -3,6 +3,7 @@ using AutoMapper;
 using Kei.Base.Helper;
 using Kei.Base.Models;
 using Kei.Base.Domain.Mapping;
+using Kei.Base.Extensions;
 using System.Collections.Concurrent;
 using System.Collections;
 using System.Linq.Expressions;
