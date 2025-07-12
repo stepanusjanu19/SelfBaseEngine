@@ -76,6 +76,8 @@ namespace Kei.Base.Domain.Repository
         IQueryable<TEntity> GetQueryableByFilter(
             List<FilterCondition<TEntity>> conditions = null,
             List<string> includeProperties = null);
+
+        Expression<Func<TEntity, bool>> UniqueFilter(TEntity entity);
         Task<OperationResult<TEntity>> Add(TEntity entity);
         Task<OperationResult<TEntity>> Update(TEntity entity);
         Task<OperationResult> Delete(params object[] keyValues);
