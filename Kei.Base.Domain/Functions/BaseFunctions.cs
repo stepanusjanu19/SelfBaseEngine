@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore.Query;
 using Newtonsoft.Json.Linq;
 using System.Data.Common;
 using System.Data;
+using Microsoft.AspNetCore.Mvc.Formatters;
 
 namespace Kei.Base.Domain.Functions
 {
@@ -34,6 +35,8 @@ namespace Kei.Base.Domain.Functions
             _mapper = MappingConfigProvider.ToSafeMapper<TEntity, TEntity>();
         }
 
+        public DbContext Context => _context;
+
         public virtual IQueryable<TEntity> GetAll()
         {
             return _dbSet.AsNoTracking().ProjectTo<TEntity>(_mapperConfig);
@@ -46,6 +49,10 @@ namespace Kei.Base.Domain.Functions
                 .Select(e => _mapper.Map<TEntity>(e))
                 .ToList();
         }
+
+        public virtual async Task<int> GetCountData(List<FilterCondition<TEntity>> conditions = null)
+            => await GetQueryableByFilter(conditions).CountAsync();
+        
         public virtual (List<TDestination> Data, int TotalCount) GetPaginateWithQuery<TSource, TDestination>(
             IQueryable<TSource> baseQuery,
             int pageNumber,
@@ -198,6 +205,27 @@ namespace Kei.Base.Domain.Functions
                 .ToList()
                 .Select(e => mapper.Map<TDestination>(e))
                 .ToList();
+        }
+
+        public virtual List<TOut> GetMappedListToList<TMid, TOut>(
+            Expression<Func<TEntity, bool>> predicate = null
+        )
+        {
+            var first = GetMappedList<TMid>(predicate);
+            var mapper = MappingConfigProvider.ToSafeMapper<TMid, TOut>();
+            return first.Select(e => mapper.Map<TOut>(e)).ToList();
+        }
+
+        public virtual List<TOut> MapList<TIn, TOut>(List<TIn> list)
+        {
+            var mapper = MappingConfigProvider.ToSafeMapper<TIn, TOut>();
+            return list.Select(e => mapper.Map<TOut>(e)).ToList();
+        }
+
+        public virtual IEnumerable<TOut> MapSelect<TIn, TOut>(List<TIn> list)
+        {
+            var mapper = MappingConfigProvider.ToSafeMapper<TIn, TOut>();
+            return list.Select(e => mapper.Map<TOut>(e));
         }
 
         public virtual OperationResult<TEntity> GetById(params object[] keyValues)
