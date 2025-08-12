@@ -243,6 +243,142 @@ namespace Kei.Base.Domain.Functions
                 ? OperationResult<TEntity>.Ok(entity)
                 : OperationResult<TEntity>.Fail("Entity not found.");
         }
+        
+        public virtual TResult GetProjectedJoinByFilter<TJoin, TKey, TResult>(
+            List<FilterCondition<TEntity>> conditions,
+            Expression<Func<TEntity, TKey>> outerKeySelector,
+            Expression<Func<TJoin, TKey>> innerKeySelector,
+            Expression<Func<TEntity, TJoin, TResult>> selector)
+            where TJoin : class
+        {
+            IQueryable<TEntity> queryA = _dbSet.AsQueryable();
+            IQueryable<TJoin> queryB = _context.Set<TJoin>().AsQueryable();
+
+            var filterUser = BuildFilters(conditions);
+            if (filterUser == null || !filterUser.Any())
+                return default;
+
+            var parameter = Expression.Parameter(typeof(TEntity), "e");
+            Expression predicate = null;
+
+            foreach (var condition in filterUser)
+            {
+                if (condition.Value is DateTime dateValue)
+                    condition.Value = NormalizeDateTimeIfNeeded(dateValue);
+
+                var expression = BuildExpression(parameter, condition);
+
+                predicate = predicate == null
+                    ? expression
+                    : (condition.IsOr == true
+                        ? Expression.OrElse(predicate, expression)
+                        : Expression.AndAlso(predicate, expression));
+            }
+
+            var lambda = Expression.Lambda<Func<TEntity, bool>>(predicate, parameter);
+            queryA = queryA.Where(lambda);
+            var joinedQuery = queryA.Join(queryB, outerKeySelector, innerKeySelector, selector);
+            try
+            {
+                return joinedQuery.FirstOrDefault();
+            }
+            catch (InvalidOperationException)
+            {
+                return joinedQuery.AsEnumerable().FirstOrDefault();
+            }
+        }
+        
+        public virtual async Task<TResult> GetProjectedJoinByFilterAsync<TJoin, TKey, TResult>(
+            List<FilterCondition<TEntity>> conditions,
+            Expression<Func<TEntity, TKey>> outerKeySelector,
+            Expression<Func<TJoin, TKey>> innerKeySelector,
+            Expression<Func<TEntity, TJoin, TResult>> selector)
+            where TJoin : class
+        {
+            IQueryable<TEntity> queryA = _dbSet.AsQueryable();
+            IQueryable<TJoin> queryB = _context.Set<TJoin>().AsQueryable();
+
+            var filterUser = BuildFilters(conditions);
+            if (filterUser == null || !filterUser.Any())
+                return default;
+
+            var parameter = Expression.Parameter(typeof(TEntity), "e");
+            Expression predicate = null;
+
+            foreach (var condition in filterUser)
+            {
+                if (condition.Value is DateTime dateValue)
+                    condition.Value = NormalizeDateTimeIfNeeded(dateValue);
+
+                var expression = BuildExpression(parameter, condition);
+
+                predicate = predicate == null
+                    ? expression
+                    : (condition.IsOr == true
+                        ? Expression.OrElse(predicate, expression)
+                        : Expression.AndAlso(predicate, expression));
+            }
+
+            var lambda = Expression.Lambda<Func<TEntity, bool>>(predicate, parameter);
+            queryA = queryA.Where(lambda);
+
+            var joinedQuery = queryA.Join(queryB, outerKeySelector, innerKeySelector, selector);
+
+            try
+            {
+                return await joinedQuery.FirstOrDefaultAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                return joinedQuery.AsEnumerable().FirstOrDefault();
+            }
+        }
+        
+        public virtual async Task<List<TResult>> GetProjectedJoinListByFilterAsync<TJoin, TKey, TResult>(
+            List<FilterCondition<TEntity>> conditions,
+            Expression<Func<TEntity, TKey>> outerKeySelector,
+            Expression<Func<TJoin, TKey>> innerKeySelector,
+            Expression<Func<TEntity, TJoin, TResult>> selector)
+            where TJoin : class
+        {
+            IQueryable<TEntity> queryA = _dbSet.AsQueryable();
+            IQueryable<TJoin> queryB = _context.Set<TJoin>().AsQueryable();
+
+            var filterUser = BuildFilters(conditions);
+            if (filterUser == null || !filterUser.Any())
+                return new List<TResult>();
+
+            var parameter = Expression.Parameter(typeof(TEntity), "e");
+            Expression predicate = null;
+
+            foreach (var condition in filterUser)
+            {
+                if (condition.Value is DateTime dateValue)
+                    condition.Value = NormalizeDateTimeIfNeeded(dateValue);
+
+                var expression = BuildExpression(parameter, condition);
+
+                predicate = predicate == null
+                    ? expression
+                    : (condition.IsOr == true
+                        ? Expression.OrElse(predicate, expression)
+                        : Expression.AndAlso(predicate, expression));
+            }
+
+            var lambda = Expression.Lambda<Func<TEntity, bool>>(predicate, parameter);
+            queryA = queryA.Where(lambda);
+
+            var joinedQuery = queryA.Join(queryB, outerKeySelector, innerKeySelector, selector);
+
+            try
+            {
+                return await joinedQuery.ToListAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                return joinedQuery.AsEnumerable().ToList();
+            }
+        }
 
         public virtual TEntity GetFirstByFilterData(
             List<FilterCondition<TEntity>> conditions = null,
@@ -607,8 +743,13 @@ namespace Kei.Base.Domain.Functions
                             throw new ArgumentException("Value must be ValueTuple<T1,T2> or Tuple<object,object> for Between");
                         }
 
-                        var start = Expression.Constant(Convert.ChangeType(item1, property.Type));
-                        var end = Expression.Constant(Convert.ChangeType(item2, property.Type));
+                        var targetType = Nullable.GetUnderlyingType(property.Type) ?? property.Type;
+
+                        var startValue = Convert.ChangeType(item1, targetType);
+                        var endValue = Convert.ChangeType(item2, targetType);
+                        
+                        var start = Expression.Constant(startValue, property.Type);
+                        var end = Expression.Constant(endValue, property.Type);
 
                         var gte = Expression.GreaterThanOrEqual(property, start);
                         var lte = Expression.LessThanOrEqual(property, end);
@@ -643,31 +784,39 @@ namespace Kei.Base.Domain.Functions
             }
         }
 
-        public virtual async Task<OperationResult<TEntity>> Update(TEntity entity)
+        public virtual async Task<OperationResult<TEntity>> Update(TEntity entity, Expression<Func<TEntity, bool>> predicate = null)
         {
             try
             {
                 var keyPropertyNames = _context.Model
                     .FindEntityType(typeof(TEntity))?
                     .FindPrimaryKey()?
-                    .Properties
+                    .Properties;
+
+                var keyPropertiesList = keyPropertyNames
                     .Select(p => p.Name)
-                    .ToHashSet();
+                    .ToList();
+                var keyPropertiesSet = keyPropertiesList?.ToHashSet();
 
                 if (keyPropertyNames == null || keyPropertyNames.Count == 0)
-                    return OperationResult<TEntity>.Fail("No primary key defined.");
+                {
+                    _dbSet.Update(entity);
+                    await _context.SaveChangesAsync();
+                    return OperationResult<TEntity>.Ok(entity, "success");
+                }
 
-                var keyValues = keyPropertyNames
-                    .Select(name => typeof(TEntity).GetProperty(name)?.GetValue(entity))
+                var keyValues = keyPropertiesList?.Select(name => typeof(TEntity).GetProperty(name)?.GetValue(entity))
                     .ToArray();
 
                 var dbEntity = await _dbSet.FindAsync(keyValues);
-                if (dbEntity == null)
+                if (dbEntity == null && predicate != null)
+                    dbEntity = await _dbSet.FirstOrDefaultAsync(predicate);
+                if (dbEntity == null && predicate == null)
                     return OperationResult<TEntity>.Fail($"Entity of type {typeof(TEntity).Name} with key not found");
 
                 foreach (var prop in typeof(TEntity).GetProperties(BindingFlags.Instance | BindingFlags.Public))
                 {
-                    if (keyPropertyNames.Contains(prop.Name)) continue;
+                    if (keyPropertiesSet.Contains(prop.Name)) continue;
 
                     var newValue = prop.GetValue(entity);
                     if (newValue != null)
@@ -717,6 +866,15 @@ namespace Kei.Base.Domain.Functions
             {
                 return OperationResult.Fail($"Delete failed: {ex.InnerException?.Message ?? ex.Message}");
             }
+        }
+        
+        
+        public virtual async Task<OperationResult> DeleteAll(bool confirm = false)
+        {
+            if (!confirm)
+                return OperationResult.Fail("DeleteAll requires explicit confirmation.");
+
+            return await Delete(x => true);
         }
 
         #region Transaction Begin & Batch
@@ -810,7 +968,7 @@ namespace Kei.Base.Domain.Functions
             }
         }
 
-        public virtual async Task<OperationResult<List<TEntity>>> UpdateBulkAsync(List<TEntity> entities)
+        public virtual async Task<OperationResult<List<TEntity>>> UpdateBulkAsync(List<TEntity> entities, Expression<Func<TEntity, bool>> predicate = null)
         {
             if (entities == null || entities.Count == 0)
                 return OperationResult<List<TEntity>>.Fail("No entities provided.");
@@ -821,28 +979,37 @@ namespace Kei.Base.Domain.Functions
                 var keyPropertyNames = _context.Model
                     .FindEntityType(entityType)?
                     .FindPrimaryKey()?
-                    .Properties
-                    .Select(p => p.Name)
+                    .Properties;
+
+                var keyPropertiesList = keyPropertyNames?
+                    .Select(p => p.Name).ToList();
+                var keyPropertiesSet = keyPropertiesList?
                     .ToHashSet();
 
                 if (keyPropertyNames == null || keyPropertyNames.Count == 0)
-                    return OperationResult<List<TEntity>>.Fail("No primary key defined.");
+                {
+                    _dbSet.UpdateRange(entities);
+                    await _context.SaveChangesAsync();
+                    return OperationResult<List<TEntity>>.Ok(entities, "Bulk update success");
+                }
 
                 var updatedEntities = new List<TEntity>();
 
                 foreach (var entity in entities)
                 {
-                    var keyValues = keyPropertyNames
+                    var keyValues = keyPropertiesList
                         .Select(name => entityType.GetProperty(name)?.GetValue(entity))
                         .ToArray();
 
                     var dbEntity = await _dbSet.FindAsync(keyValues);
+                    if (dbEntity == null && predicate != null)
+                        dbEntity = await _dbSet.FirstOrDefaultAsync(predicate);
                     if (dbEntity == null)
                         continue;
 
                     foreach (var prop in entityType.GetProperties(BindingFlags.Instance | BindingFlags.Public))
                     {
-                        if (keyPropertyNames.Contains(prop.Name))
+                        if (keyPropertiesSet.Contains(prop.Name))
                             continue;
 
                         var newValue = prop.GetValue(entity);
@@ -898,6 +1065,23 @@ namespace Kei.Base.Domain.Functions
         public virtual List<TEntity> QueryRawSql(string sql, params object[] parameters)
         {
             return _dbSet.FromSqlRaw(sql, parameters).AsNoTracking().ToList();
+        }
+        
+        public virtual async Task<List<TEntity>> QueryRawSqlAsync(string sql, params object[] parameters)
+        {
+            return await _dbSet.FromSqlRaw(sql, parameters).AsNoTracking().ToListAsync();
+        }
+
+        public virtual async Task<List<TEntity>> QueryRawSqlInterpolatedAsync(FormattableString sql)
+        {
+            return await _dbSet.FromSqlInterpolated(sql).AsNoTracking().ToListAsync();
+        }
+
+        public virtual async Task<List<TEntity>> QueryRawSqlWithParamsAsync(string sql, Dictionary<string, object?> parameters)
+        {
+            var provider = _context.Database.ProviderName ?? "";
+            var sqlParams = parameters.Select(p => ProviderParameter.Create(provider, p.Key, p.Value ?? DBNull.Value)).ToArray();
+            return await _dbSet.FromSqlRaw(sql, sqlParams).AsNoTracking().ToListAsync();
         }
 
         public virtual OperationResult ExecuteProcedure(string procFullName, params DbParameter[] parameters)

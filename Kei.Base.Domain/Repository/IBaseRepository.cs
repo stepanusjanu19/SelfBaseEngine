@@ -79,7 +79,7 @@ namespace Kei.Base.Domain.Repository
 
         Expression<Func<TEntity, bool>> UniqueFilter(TEntity entity);
         Task<OperationResult<TEntity>> Add(TEntity entity);
-        Task<OperationResult<TEntity>> Update(TEntity entity);
+        Task<OperationResult<TEntity>> Update(TEntity entity, Expression<Func<TEntity, bool>> predicate = null);
         Task<OperationResult> Delete(params object[] keyValues);
         Task<OperationResult> Delete(TEntity entity);
         
@@ -90,7 +90,7 @@ namespace Kei.Base.Domain.Repository
         Task<OperationResult<int>> UpdateBulkAsync(
             Expression<Func<TEntity, bool>> predicate,
             Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> updateExpression);
-        Task<OperationResult<List<TEntity>>> UpdateBulkAsync(List<TEntity> entities);
+        Task<OperationResult<List<TEntity>>> UpdateBulkAsync(List<TEntity> entities, Expression<Func<TEntity, bool>> predicate = null);
 
         #endregion
 
