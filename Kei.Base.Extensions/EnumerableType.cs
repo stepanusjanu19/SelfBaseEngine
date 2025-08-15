@@ -2,6 +2,7 @@ namespace Kei.Base.Extensions
 {
     public enum FilterOperator
     {
+        // sinle filter
         Equal,
         NotEqual,
         Contains,
@@ -16,15 +17,24 @@ namespace Kei.Base.Extensions
         IsNull,
         IsNotNull,
         Between,
-        NotLike
+        NotLike,
+        
+        //group filter
+        GroupAnd,
+        GroupOr,
     }
+    
+    public enum FilterGroupOperator
+    {
+        And,
+        Or
+    }
+    
     public enum PaginationMode
     {
         WithQuery,
         Project,
         SelfWithQuery,
         Self
-    }
-
-    
+    } 
 }

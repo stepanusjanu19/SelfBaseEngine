@@ -87,4 +87,11 @@ namespace Kei.Base.Domain.Functions
             return (IList)toListMethod.Invoke(null, new object[] { casted })!;
         }
     }
+    
+    public class FilterGroup<TEntity>
+    {
+        public FilterGroupOperator GroupOperator { get; set; } = FilterGroupOperator.And;
+        public List<FilterCondition<TEntity>> Conditions { get; set; } = new();
+        public List<FilterGroup<TEntity>> SubGroups { get; set; } = new();
+    }
 }

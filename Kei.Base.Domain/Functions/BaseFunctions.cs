@@ -1079,7 +1079,7 @@ namespace Kei.Base.Domain.Functions
 
         public virtual async Task<List<TEntity>> QueryRawSqlWithParamsAsync(string sql, Dictionary<string, object?> parameters)
         {
-            var provider = _context.Database.ProviderName ?? "";
+                var provider = _context.Database.ProviderName ?? "";
             var sqlParams = parameters.Select(p => ProviderParameter.Create(provider, p.Key, p.Value ?? DBNull.Value)).ToArray();
             return await _dbSet.FromSqlRaw(sql, sqlParams).AsNoTracking().ToListAsync();
         }
@@ -1112,6 +1112,114 @@ namespace Kei.Base.Domain.Functions
                 _context.Database.CloseConnection();
             }
         }
+        
+        public virtual OperationResult ExecuteProcedure(
+            string procFullName,
+            Dictionary<string, object?>? parameters = null)
+        {
+            try
+            {
+                var provider = _context.Database.ProviderName ?? "";
+                string sql;
+
+                if (parameters == null || parameters.Count == 0)
+                {
+                    sql = ProviderParameter.ProcedureCallSyntax(provider, procFullName, Array.Empty<string>());
+                    return ExecuteRawSql(sql);
+                }
+                else
+                {
+                    var paramNames = parameters.Keys.ToList();
+                    sql = ProviderParameter.ProcedureCallSyntax(provider, procFullName, paramNames);
+
+                    var sqlParams = parameters
+                        .Select(p => ProviderParameter.Create(provider, p.Key, p.Value))
+                        .ToArray();
+
+                    return ExecuteRawSql(sql, sqlParams);
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.Fail(
+                    $"Execute query failed : {ex.InnerException?.Message ?? ex.Message}");
+            }
+        }
+        
+        public virtual OperationResult ExecuteProcedureByContext(string procFullName, Dictionary<string, object?>? parameters = null)
+        {
+            try
+            {
+                using var connection = _context.Database.GetDbConnection();
+                using var command = connection.CreateCommand();
+
+                command.CommandText = procFullName;
+                command.CommandType = CommandType.StoredProcedure;
+
+                if (parameters != null && parameters.Count > 0)
+                {
+                    foreach (var parameter in parameters)
+                    {
+                        command.Parameters.Add(parameter);
+                    }
+                }
+
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                command.ExecuteNonQuery();
+
+                return OperationResult.Ok("Procedure executed successfully.");
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.Fail($"ExecuteProcedure failed: {ex.InnerException?.Message ?? ex.Message}");
+            }
+        }
+        
+        public async Task<T> ExecuteScalarAsync<T>(string sql, Dictionary<string, object?> parameters)
+        {
+            using var connection = _context.Database.GetDbConnection();
+            await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            command.CommandType = CommandType.Text;
+
+            foreach (var param in parameters)
+            {
+                var dbParam = command.CreateParameter();
+                dbParam.ParameterName = param.Key.StartsWith("@") ? param.Key : $"@{param.Key}";
+                dbParam.Value = param.Value ?? DBNull.Value;
+                command.Parameters.Add(dbParam);
+            }
+
+            var result = await command.ExecuteScalarAsync();
+            return result != null && result != DBNull.Value
+                ? (T)Convert.ChangeType(result, typeof(T))
+                : default!;
+        }
+        
+        public async Task<decimal> GetNextSequenceValueAsync(string sequenceName)
+        {
+            string providerName = _context.Database.ProviderName ?? string.Empty;
+            string sql;
+
+            if (providerName.Contains("Npgsql"))
+                sql = $"SELECT nextval('{sequenceName}')";
+            else if (providerName.Contains("Oracle"))
+                sql = $"SELECT {sequenceName}.NEXTVAL FROM dual";
+            else if (providerName.Contains("SqlServer"))
+                sql = $"SELECT NEXT VALUE FOR {sequenceName}";
+            else if (providerName.Contains("MySql") || providerName.Contains("MariaDb"))
+                sql = $"SELECT NEXT VALUE FOR {sequenceName}";
+            else
+                throw new NotSupportedException($"Sequences are not supported for provider {providerName}");
+
+            return await ExecuteScalarAsync<decimal>(sql, new Dictionary<string, object?>());
+        }
 
         public virtual async Task<OperationResult> ExecuteProcedureAsync(string procFullName, params DbParameter[] parameters)
         {
@@ -1140,6 +1248,21 @@ namespace Kei.Base.Domain.Functions
             {
                 await _context.Database.CloseConnectionAsync();
             }
+        }
+        
+        protected bool IsValidColumn<TEntity>(string columnName)
+        {
+            var entityType = _context.Model.FindEntityType(typeof(TEntity));
+            if (entityType == null) return false;
+
+            var storeObject = StoreObjectIdentifier.Table(entityType.GetTableName(), entityType.GetSchema());
+            var validColumns = entityType
+                .GetProperties()
+                .Select(p => p.GetColumnName(storeObject))
+                .Where(name => name != null)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            return validColumns.Contains(columnName);
         }
 
         public virtual DbParameter CreateParameter(string name, object? value, DbType? type = null)
@@ -1318,16 +1441,41 @@ namespace Kei.Base.Domain.Functions
 
         protected List<FilterCondition<TEntity>> FilterConditions(IEnumerable<NormalizedFilter> normalizedFilters)
         {
-            return normalizedFilters
-                .Where(f => f.Value != null && (!(f.Value is string s) || !string.IsNullOrWhiteSpace(s)))
-                .Select(f => new FilterCondition<TEntity>
+            return normalizedFilters.Select(f =>
                 {
-                    PropertyExpression = f.Property,
-                    Value = f.Value,
-                    Operator = f.Operator,
-                    IsOr = f.IsOr
+                    if (f.Operator is FilterOperator.GroupOr or FilterOperator.GroupAnd)
+                    {
+                        var groupFilters = (f.Value as IEnumerable<NormalizedFilter>)!;
+                        return new FilterCondition<TEntity>
+                        {
+                            Operator = f.Operator,
+                            GroupConditions = FilterConditions(groupFilters)
+                        };
+                    }
+
+                    return new FilterCondition<TEntity>
+                    {
+                        PropertyExpression = f.Property,
+                        Value = f.Value,
+                        Operator = f.Operator,
+                        IsOr = f.IsOr
+                    };
                 })
+                .Where(f =>
+                    (f.GroupConditions?.Any() == true) ||
+                    (f.Value != null && (!(f.Value is string s) || !string.IsNullOrWhiteSpace(s))))
                 .ToList();
+            
+            // return normalizedFilters
+            //     .Where(f => f.Value != null && (!(f.Value is string s) || !string.IsNullOrWhiteSpace(s)))
+            //     .Select(f => new FilterCondition<TEntity>
+            //     {
+            //         PropertyExpression = f.Property,
+            //         Value = f.Value,
+            //         Operator = f.Operator,
+            //         IsOr = f.IsOr
+            //     })
+            //     .ToList();
         }
 
         protected List<FilterCondition<TEntity>> FilterConditions<TProp>(params FilterInput<TProp>[] filters)
@@ -1387,6 +1535,29 @@ namespace Kei.Base.Domain.Functions
         {
             return NormalizeFilter(new FilterInput<TProp>(property, values, op, isOr));
         }
+        
+        protected NormalizedFilter FilterGroup(FilterGroupOperator groupOperator, params NormalizedFilter[] filters)
+        {
+            FilterOperator groupOp;
+            switch (groupOperator)
+            {
+                case FilterGroupOperator.And:
+                    groupOp = FilterOperator.GroupAnd;
+                    break;
+                case FilterGroupOperator.Or:
+                    groupOp = FilterOperator.GroupOr;
+                    break;
+                default:
+                    throw new NotSupportedException($"Unsupported group operator: {groupOperator}");
+            }
+
+            return new NormalizedFilter(
+                Property: null!,
+                Value: filters.ToList(),
+                Operator: groupOp,
+                IsOr: false
+            );
+        }
 
         protected Expression<Func<TEntity, object>> CastToObject<TProp>(Expression<Func<TEntity, TProp>> expr)
         {
@@ -1442,6 +1613,21 @@ namespace Kei.Base.Domain.Functions
             Expression<Func<TEntity, object>> propertyExpression)
         {
             var body = propertyExpression.Body;
+
+            if (body is UnaryExpression unary && unary.NodeType == ExpressionType.Convert)
+                body = unary.Operand;
+
+            if (body is MemberExpression member)
+                return Expression.PropertyOrField(parameter, member.Member.Name);
+
+            throw new InvalidOperationException("Invalid property expression");
+        }
+        
+        private static MemberExpression GetMemberExpression<TEntity, TProperty>(
+            ParameterExpression parameter,
+            Expression<Func<TEntity, TProperty>> propertyExpression)
+        {
+            Expression body = propertyExpression.Body;
 
             if (body is UnaryExpression unary && unary.NodeType == ExpressionType.Convert)
                 body = unary.Operand;

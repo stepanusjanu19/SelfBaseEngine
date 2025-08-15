@@ -24,6 +24,34 @@ namespace Kei.Base.Helper
 
             throw new NotSupportedException($"Provider {providerName} not supported.");
         }
+        
+        public static string ProcedureCallSyntax(string provider, string procName, IList<string> paramNames)
+        {
+            string placeholders = string.Join(", ", paramNames.Select(p => $"@{p}"));
+
+            if (provider.Contains("SqlServer", StringComparison.OrdinalIgnoreCase))
+            {
+                return paramNames.Count > 0
+                    ? $"EXEC {procName} {placeholders}"
+                    : $"EXEC {procName}";
+            }
+            else if (provider.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) ||
+                     provider.Contains("MySql", StringComparison.OrdinalIgnoreCase) ||
+                     provider.Contains("MariaDb", StringComparison.OrdinalIgnoreCase))
+            {
+                return paramNames.Count > 0
+                    ? $"CALL {procName}({placeholders})"
+                    : $"CALL {procName}()";
+            }
+            else if (provider.Contains("Oracle", StringComparison.OrdinalIgnoreCase))
+            {
+                return paramNames.Count > 0
+                    ? $"BEGIN {procName}({placeholders}); END;"
+                    : $"BEGIN {procName}; END;";
+            }
+
+            throw new NotSupportedException($"Unsupported provider: {provider}");
+        }
     }
 }
 

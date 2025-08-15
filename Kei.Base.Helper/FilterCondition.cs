@@ -15,5 +15,6 @@ namespace Kei.Base.Helper
         public object Value { get; set; }
         public FilterOperator Operator { get; set; } = FilterOperator.Equal;
         public bool? IsOr { get; set; } = false;
+        public List<FilterCondition<TEntity>>? GroupConditions { get; set; }
     }
 }
