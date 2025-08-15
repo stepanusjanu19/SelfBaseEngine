@@ -35,7 +35,7 @@ namespace Kei.Base.Domain.Functions
             _mapper = MappingConfigProvider.ToSafeMapper<TEntity, TEntity>();
         }
 
-        public DbContext Context => _context;
+        public virtual DbContext Context => _context;
 
         public virtual IQueryable<TEntity> GetAll()
         {

@@ -9,14 +9,17 @@ using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using Kei.Base.Domain.Functions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 
 namespace Kei.Base.Domain.Repository
 {
     public interface IBaseRepository<TEntity> where TEntity : class
     {
+        DbContext Context { get; }
         IQueryable<TEntity> GetAll();
         IEnumerable<TEntity> GetAllColumn();
+        Task<int> GetCountData(List<FilterCondition<TEntity>> conditions = null);
         (List<TDestination> Data, int TotalCount) GetPaginateWithQuery<TSource, TDestination>(
             IQueryable<TSource> baseQuery,
             int pageNumber,
@@ -49,6 +52,9 @@ namespace Kei.Base.Domain.Repository
         where T : class;
         IOrderedQueryable<T> OrderByDynamic<T>(IQueryable<T> source, string columnName, bool ascending);
         List<TDestination> GetMappedList<TDestination>(Expression<Func<TEntity, bool>> predicate = null);
+        List<TOut> GetMappedListToList<TMid, TOut>(Expression<Func<TEntity, bool>> predicate = null);
+        List<TOut> MapList<TIn, TOut>(List<TIn> list);
+        IEnumerable<TOut> MapSelect<TIn, TOut>(List<TIn> list);
         OperationResult<TEntity> GetById(params object[] keyValues);
         Task<OperationResult<TEntity>> GetByIdAsync(params object[] keyValues);
         TEntity GetFirstByFilterData( List<FilterCondition<TEntity>> conditions = null, List<string> includeProperties = null, params object[] keyValues);

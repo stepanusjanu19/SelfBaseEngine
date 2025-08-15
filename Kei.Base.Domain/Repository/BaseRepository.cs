@@ -16,7 +16,7 @@ namespace Kei.Base.Domain.Repository
         protected BaseRepository(DbContext context) 
             : base(context)
         { }
-
+        
         public virtual Expression<Func<TEntity, bool>> UniqueFilter(TEntity entity)
             => base.UniqueFilter(entity);
 
