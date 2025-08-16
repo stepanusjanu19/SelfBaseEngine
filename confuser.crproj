@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<project outputDir="confused" baseDir="Kei.Base/bin/Release/net8.0">
+<project outputDir="confused" baseDir="./Kei.Base/bin/Release/net8.0">
   <rule pattern="true" preset="maximum" inherit="false">
-    <!-- Safe protections -->
     <protection id="rename" />
     <protection id="ctrl flow" />
     <protection id="resources" />
     <protection id="constants" />
   </rule>
-  
-  <!-- Each DLL you want obfuscated -->
+
+  <!-- All project DLLs -->
   <module path="Kei.Base.dll" />
-  
-  <!-- Tell ConfuserEx where to find .NET 8 runtime/reference assemblies -->
+  <module path="Kei.Base.Domain.dll" />
+  <module path="Kei.Base.Helper.dll" />
+  <module path="Kei.Base.Extensions.dll" />
+
   <probePaths>
     <path value="/usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.0/ref/net8.0" />
     <path value="/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.0" />
   </probePaths>
-  
 </project>
