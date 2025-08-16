@@ -23,8 +23,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Kei.Base.Extensions\Kei.Base.Extensions.csproj" />
-    <ProjectReference Include="..\Kei.Base.Helper\Kei.Base.Helper.csproj" />
+<!--    <ProjectReference Include="..\Kei.Base.Extensions\Kei.Base.Extensions.csproj" />-->
+<!--    <ProjectReference Include="..\Kei.Base.Helper\Kei.Base.Helper.csproj" />-->
+    <PackageReference Include="Kei.Base.Domain" Version="1.0.0" />
+    <PackageReference Include="Kei.Base.Extensions" Version="1.0.0" />
+    <PackageReference Include="Kei.Base.Helper" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

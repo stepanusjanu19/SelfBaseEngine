@@ -1,0 +1,33 @@
+name: Publish NuGet Packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore SelfBaseEngine.sln
+
+      - name: Build & Pack
+        run: |
+          dotnet pack Kei.Base/Kei.Base.csproj -c Release -o ./artifacts
+          dotnet pack Kei.Base.Domain/Kei.Base.Domain.csproj -c Release -o ./artifacts
+          dotnet pack Kei.Base.Extensions/Kei.Base.Extensions.csproj -c Release -o ./artifacts
+          dotnet pack Kei.Base.Helper/Kei.Base.Helper.csproj -c Release -o ./artifacts
+
+      - name: Publish to NuGet
+        run: dotnet nuget push ./artifacts/*.nupkg \
+             --api-key ${{ secrets.NUGET_API_KEY }} \
+             --source https://api.nuget.org/v3/index.json
+
