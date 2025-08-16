@@ -29,18 +29,22 @@ jobs:
       # Step 4: Build solution
       - name: Build solution
         run: dotnet build Kei.Base/Kei.Base.sln --configuration Release --no-restore
+        
+      # Step 5: Install Mono  
+      - name: Install Mono
+        run: sudo apt-get update && sudo apt-get install -y mono-runtime unzip
       
-      # Step 5: Install Confuser Ex (lib obsfucated) 
+      # Step 6: Install Confuser Ex (lib obsfucated) 
       - name: Download ConfuserEx
         run: |
           curl -L -o confuserex.zip https://github.com/mkaring/ConfuserEx/releases/download/v1.6.0/ConfuserEx-CLI.zip
-          tar -xf confuserex.zip -C confuserex
+          unzip confuserex.zip -d confuserex
       
-      # Step 6:Obfuscated assemblies for cli -> .dll files
+      # Step 7:Obfuscated assemblies for cli -> .dll files
       - name: Obfuscate assemblies
-        run: confuserex/Confuser.CLI.exe -n confuser.crproj
+        run: mono confuserex/Confuser.CLI.exe -n confuser.crproj
         
-      # Step 7: Replace Dll with Obfuscated .dll files
+      # Step 8: Replace Dll with Obfuscated .dll files
       - name: Replace DLLs with obfuscated versions
         run: |
           cp confused/*.dll Kei.Base/bin/Release/net8.0/
@@ -48,7 +52,7 @@ jobs:
           cp confused/*.dll Kei.Base.Extensions/bin/Release/net8.0/
           cp confused/*.dll Kei.Base.Helper/bin/Release/net8.0/
 
-      # Step 5: Pack all projects into NuGet packages
+      # Step 9: Pack all projects into NuGet packages
       - name: Pack NuGet packages
         run: |
           dotnet pack Kei.Base/Kei.Base.csproj -c Release -o ./artifacts
@@ -56,7 +60,7 @@ jobs:
           dotnet pack Kei.Base.Extensions/Kei.Base.Extensions.csproj -c Release -o ./artifacts
           dotnet pack Kei.Base.Helper/Kei.Base.Helper.csproj -c Release -o ./artifacts
 
-      # Step 6: Publish packages to NuGet (only on tagged commits)
+      # Step 10: Publish packages to NuGet (only on tagged commits)
       - name: Publish to NuGet
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
         run: |
