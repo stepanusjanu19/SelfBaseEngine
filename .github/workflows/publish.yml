@@ -40,7 +40,7 @@ jobs:
 
       # Step 6: Publish packages to NuGet (only on tagged commits)
       - name: Publish to NuGet
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
         run: |
           echo "📦 Checking packed artifacts..."
           ls -R ./artifacts
@@ -49,3 +49,4 @@ jobs:
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate \
             --verbosity detailed
+
