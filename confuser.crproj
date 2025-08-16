@@ -8,10 +8,6 @@
     <protection id="constants" />
   </rule>
   
-  <rule pattern="*" inherit="true">
-    <protection id="rename" action="remove" />
-  </rule>
-
   <!-- Each DLL you want obfuscated -->
   <module path="Kei.Base.dll" />
   <module path="Kei.Base.Domain.dll" />
