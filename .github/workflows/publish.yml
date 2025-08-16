@@ -39,13 +39,19 @@ jobs:
         run: |
           curl -L -o confuserex.zip https://github.com/mkaring/ConfuserEx/releases/download/v1.6.0/ConfuserEx-CLI.zip
           unzip confuserex.zip -d confuserex
+          
+      - name: Debug build output
+        run: |
+          pwd
+          find . -type f -name "*.dll" | grep "bin/Release/net8.0"
       
       # Step 7:Obfuscated assemblies for cli -> .dll files
       - name: Obfuscate assemblies
         run: |
+          cd Kei.Base
           ls -la bin/Release/net8.0
           chmod +r bin/Release/net8.0/*.dll
-          mono ../../confuserex/Confuser.CLI.exe -n confuser.crproj
+          mono ../confuserex/Confuser.CLI.exe -n ../confuser.crproj
         
       # Step 8: Replace Dll with Obfuscated .dll files
       - name: Replace DLLs with obfuscated versions
