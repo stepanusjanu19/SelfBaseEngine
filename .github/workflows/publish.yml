@@ -17,7 +17,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore SelfBaseEngine.sln
+        run: dotnet restore Kei.Base/Kei.Base.sln
 
       - name: Build & Pack
         run: |
@@ -28,6 +28,5 @@ jobs:
 
       - name: Publish to NuGet
         run: dotnet nuget push ./artifacts/*.nupkg \
-             --api-key ${{ secrets.NUGET_API_KEY }} \
-             --source https://api.nuget.org/v3/index.json
-
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json
