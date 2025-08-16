@@ -1,9 +1,9 @@
-name: Nuget Publish
+name: NuGet Publish
 
 on:
   push:
     branches:
-      - master   
+      - master
     tags:
       - 'v*.*.*'
 
@@ -12,24 +12,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout .NET Nuget Packages
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Setup .NET Nuget Packages
-        uses: actions/setup-dotnet@v3
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore .NET Nuget Packages
-        run: dotnet restore ./Kei.Base/Kei.Base.sln
+      - name: Restore dependencies
+        run: dotnet restore Kei.Base/Kei.Base.sln
 
-      - name: Build .NET Nuget Packages 
-        run: dotnet build ./Kei.Base/Kei.Base.sln --configuration Release --no-restore
+      - name: Build solution
+        run: dotnet build Kei.Base/Kei.Base.sln --configuration Release --no-restore
 
-      - name: Pack .NET Nuget Packages
-        run: dotnet pack ./Kei.Base/Kei.Base.csproj --configuration Release --no-build -o ./artifacts
+      - name: Pack NuGet packages
+        run: |
+          dotnet pack Kei.Base/Kei.Base.csproj -c Release -o ./artifacts
+          dotnet pack Kei.Base.Domain/Kei.Base.Domain.csproj -c Release -o ./artifacts
+          dotnet pack Kei.Base.Extensions/Kei.Base.Extensions.csproj -c Release -o ./artifacts
+          dotnet pack Kei.Base.Helper/Kei.Base.Helper.csproj -c Release -o ./artifacts
 
-      - name: Publish .NET Nuget Packages
+      - name: Publish to NuGet
         if: startsWith(github.ref, 'refs/tags/v')
         run: dotnet nuget push ./artifacts/*.nupkg \
           --api-key ${{ secrets.NUGET_API_KEY }} \
