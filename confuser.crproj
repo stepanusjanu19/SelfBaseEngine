@@ -8,7 +8,7 @@
     <protection id="constants" />
   </rule>
   
-  <rule pattern="Kei.Base*" inherit="true">
+  <rule pattern="*" inherit="true">
     <protection id="rename" action="remove" />
   </rule>
 
