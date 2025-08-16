@@ -13,8 +13,8 @@
   </rule>
 
   <!-- Each DLL you want obfuscated -->
-  <module path="Kei.Base.dll" />
-  <module path="Kei.Base.Domain.dll" />
-  <module path="Kei.Base.Extensions.dll" />
-  <module path="Kei.Base.Helper.dll" />
+  <module path="Kei.Base/bin/Release/net8.0/Kei.Base.dll" />
+  <module path="Kei.Base.Domain/bin/Release/net8.0/Kei.Base.Domain.dll" />
+  <module path="Kei.Base.Extensions/bin/Release/net8.0/Kei.Base.Extensions.dll" />
+  <module path="Kei.Base.Helper/bin/Release/net8.0/Kei.Base.Helper.dll" />
 </project>
