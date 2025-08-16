@@ -41,6 +41,11 @@ jobs:
       # Step 6: Publish packages to NuGet (only on tagged commits)
       - name: Publish to NuGet
         if: startsWith(github.ref, 'refs/tags/v')
-        run: dotnet nuget push ./artifacts/*.nupkg \
-          --api-key ${{ secrets.NUGET_API_KEY }} \
-          --source https://api.nuget.org/v3/index.json
+        run: |
+          echo "📦 Checking packed artifacts..."
+          ls -R ./artifacts
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --verbosity detailed
