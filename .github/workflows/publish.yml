@@ -42,7 +42,6 @@ jobs:
       
       # Step 7:Obfuscated assemblies for cli -> .dll files
       - name: Obfuscate assemblies
-        working-directory: SelfBaseEngine/SelfBaseEngine
         run: |
           ls -la bin/Release/net8.0
           chmod +r bin/Release/net8.0/*.dll
