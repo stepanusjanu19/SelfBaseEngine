@@ -14,6 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Kei.Base.Extensions\Kei.Base.Extensions.csproj" />
+    <ProjectReference Include="..\Kei.Base.Helper\Kei.Base.Helper.csproj" />
     <ProjectReference Include="..\Kei.Base\Kei.Base.csproj" />
   </ItemGroup>
 
