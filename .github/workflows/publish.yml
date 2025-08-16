@@ -30,6 +30,17 @@ jobs:
       - name: Build solution
         run: dotnet build Kei.Base/Kei.Base.sln --configuration Release --no-restore
         
+      - name: Copy dependencies for obfuscation
+        run: |
+          cp Kei.Base.Domain/bin/Release/net8.0/Kei.Base.Domain.dll Kei.Base/bin/Release/net8.0/
+          cp Kei.Base.Extensions/bin/Release/net8.0/Kei.Base.Extensions.dll Kei.Base/bin/Release/net8.0/
+          cp Kei.Base.Helper/bin/Release/net8.0/Kei.Base.Helper.dll Kei.Base/bin/Release/net8.0/
+          
+      - name: Debug build output
+        run: |
+          pwd
+          find . -type f -name "*.dll" | grep "bin/Release/net8.0"    
+        
       # Step 5: Install Mono  
       - name: Install Mono
         run: sudo apt-get update && sudo apt-get install -y mono-runtime unzip
@@ -39,11 +50,6 @@ jobs:
         run: |
           curl -L -o confuserex.zip https://github.com/mkaring/ConfuserEx/releases/download/v1.6.0/ConfuserEx-CLI.zip
           unzip confuserex.zip -d confuserex
-          
-      - name: Debug build output
-        run: |
-          pwd
-          find . -type f -name "*.dll" | grep "bin/Release/net8.0"
       
       # Step 7:Obfuscated assemblies for cli -> .dll files
       - name: Obfuscate assemblies
@@ -55,11 +61,7 @@ jobs:
         
       # Step 8: Replace Dll with Obfuscated .dll files
       - name: Replace DLLs with obfuscated versions
-        run: |
-          cp confused/*.dll Kei.Base/bin/Release/net8.0/
-          cp confused/*.dll Kei.Base.Domain/bin/Release/net8.0/
-          cp confused/*.dll Kei.Base.Extensions/bin/Release/net8.0/
-          cp confused/*.dll Kei.Base.Helper/bin/Release/net8.0/
+        run: cp confused/*.dll Kei.Base/bin/Release/net8.0/
 
       # Step 9: Pack all projects into NuGet packages
       - name: Pack NuGet packages

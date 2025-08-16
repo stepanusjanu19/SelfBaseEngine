@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<project outputDir="confused" baseDir="Kei.Base.Domain/bin/Release/net8.0">
+<project outputDir="confused" baseDir="Kei.Base/bin/Release/net8.0">
   <rule pattern="true" preset="maximum" inherit="false">
     <!-- Safe protections -->
     <protection id="rename" />
@@ -10,9 +10,6 @@
   
   <!-- Each DLL you want obfuscated -->
   <module path="Kei.Base.dll" />
-  <module path="Kei.Base.Domain.dll" />
-  <module path="Kei.Base.Extensions.dll" />
-  <module path="Kei.Base.Helper.dll" />
   
   <!-- Tell ConfuserEx where to find .NET 8 runtime/reference assemblies -->
   <probePaths>
