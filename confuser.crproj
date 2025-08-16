@@ -13,4 +13,11 @@
   <module path="Kei.Base.Domain.dll" />
   <module path="Kei.Base.Extensions.dll" />
   <module path="Kei.Base.Helper.dll" />
+  
+  <!-- Tell ConfuserEx where to find .NET 8 runtime/reference assemblies -->
+  <probePaths>
+    <path value="/usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.0/ref/net8.0" />
+    <path value="/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.0" />
+  </probePaths>
+  
 </project>
