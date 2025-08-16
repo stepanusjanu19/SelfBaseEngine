@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<project outputDir="confused" baseDir="bin/Release/net8.0">
+  <rule pattern="true" preset="maximum" inherit="false">
+    <!-- Safe protections -->
+    <protection id="rename" />
+    <protection id="ctrl flow" />
+    <protection id="resources" />
+    <protection id="constants" />
+  </rule>
+  
+  <rule pattern="Kei.Base.*" inherit="true">
+    <protection id="rename" action="remove" />
+  </rule>
+
+  <!-- Each DLL you want obfuscated -->
+  <module path="Kei.Base.dll" />
+  <module path="Kei.Base.Domain.dll" />
+  <module path="Kei.Base.Extensions.dll" />
+  <module path="Kei.Base.Helper.dll" />
+</project>
