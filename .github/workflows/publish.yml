@@ -5,27 +5,32 @@ on:
     branches:
       - master
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*' # Runs when you push a tag like v1.0.0
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout source code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Step 2: Setup .NET SDK
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
+      # Step 3: Restore dependencies
       - name: Restore dependencies
         run: dotnet restore Kei.Base/Kei.Base.sln
 
+      # Step 4: Build solution
       - name: Build solution
         run: dotnet build Kei.Base/Kei.Base.sln --configuration Release --no-restore
 
+      # Step 5: Pack all projects into NuGet packages
       - name: Pack NuGet packages
         run: |
           dotnet pack Kei.Base/Kei.Base.csproj -c Release -o ./artifacts
@@ -33,6 +38,7 @@ jobs:
           dotnet pack Kei.Base.Extensions/Kei.Base.Extensions.csproj -c Release -o ./artifacts
           dotnet pack Kei.Base.Helper/Kei.Base.Helper.csproj -c Release -o ./artifacts
 
+      # Step 6: Publish packages to NuGet (only on tagged commits)
       - name: Publish to NuGet
         if: startsWith(github.ref, 'refs/tags/v')
         run: dotnet nuget push ./artifacts/*.nupkg \
