@@ -42,7 +42,11 @@ jobs:
       
       # Step 7:Obfuscated assemblies for cli -> .dll files
       - name: Obfuscate assemblies
-        run: mono confuserex/Confuser.CLI.exe -n confuser.crproj
+        working-directory: SelfBaseEngine/SelfBaseEngine
+        run: |
+          ls -la bin/Release/net8.0
+          chmod +r bin/Release/net8.0/*.dll
+          mono ../../confuserex/Confuser.CLI.exe -n confuser.crproj
         
       # Step 8: Replace Dll with Obfuscated .dll files
       - name: Replace DLLs with obfuscated versions
