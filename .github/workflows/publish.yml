@@ -55,22 +55,28 @@ jobs:
           ASPNET_VER=$(ls /usr/share/dotnet/shared/Microsoft.AspNetCore.App | grep "^8\." | sort -V | tail -1)
           ASPNET_PATH="/usr/share/dotnet/shared/Microsoft.AspNetCore.App/$ASPNET_VER"
 
+          INPATH="$(pwd)/Kei.Base/bin/Release/net8.0"
+          OUTPATH="$(pwd)/confused"
+
           echo "✅ .NET Core path:    $NETCORE_PATH"
           echo "✅ ASP.NET Core path: $ASPNET_PATH"
 
-          INPATH="$(pwd)/Kei.Base/bin/Release/net8.0"
-          OUTPATH="$(pwd)/confused"
+          # Copy framework DLLs into InPath so Obfuscar can resolve them.
+          # Use -n (no-clobber) so we never overwrite the project's own built DLLs.
+          cp -n "$NETCORE_PATH"/*.dll  "$INPATH/" || true
+          cp -n "$ASPNET_PATH"/*.dll   "$INPATH/" || true
+
+          echo "📂 InPath DLL count after copy: $(ls "$INPATH"/*.dll | wc -l)"
 
           cat > obfuscator.xml <<EOF
           <?xml version='1.0'?>
           <Obfuscator>
-            <Var name="OutPath"               value="${OUTPATH}" />
-            <Var name="KeepPublicApi"         value="false" />
-            <Var name="HideStrings"           value="true"  />
-            <Var name="RenameProperties"      value="true"  />
-            <Var name="RenameEvents"          value="true"  />
-            <Var name="RenameFields"          value="true"  />
-            <Var name="ExtraFrameworkFolders" value="${NETCORE_PATH};${ASPNET_PATH}" />
+            <Var name="OutPath"          value="${OUTPATH}" />
+            <Var name="KeepPublicApi"    value="false" />
+            <Var name="HideStrings"      value="true"  />
+            <Var name="RenameProperties" value="true"  />
+            <Var name="RenameEvents"     value="true"  />
+            <Var name="RenameFields"     value="true"  />
             <Module file="${INPATH}/Kei.Base.dll"            />
             <Module file="${INPATH}/Kei.Base.Domain.dll"     />
             <Module file="${INPATH}/Kei.Base.Helper.dll"     />
