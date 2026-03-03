@@ -47,9 +47,35 @@ jobs:
       - name: Obfuscate assemblies
         run: |
           mkdir -p confused
+
+          # Generate obfuscator.xml in-place so no extra file needs to be committed
+          INPATH="$(pwd)/Kei.Base/bin/Release/net8.0"
+          OUTPATH="$(pwd)/confused"
+
+          cat > obfuscator.xml <<EOF
+          <?xml version='1.0'?>
+          <Obfuscator>
+            <Var name="InPath"           value="${INPATH}" />
+            <Var name="OutPath"          value="${OUTPATH}" />
+            <Var name="KeepPublicApi"    value="false" />
+            <Var name="HideStrings"      value="true"  />
+            <Var name="RenameProperties" value="true"  />
+            <Var name="RenameEvents"     value="true"  />
+            <Var name="RenameFields"     value="true"  />
+            <Module file="\${InPath}/Kei.Base.dll"            />
+            <Module file="\${InPath}/Kei.Base.Domain.dll"     />
+            <Module file="\${InPath}/Kei.Base.Helper.dll"     />
+            <Module file="\${InPath}/Kei.Base.Extensions.dll" />
+          </Obfuscator>
+          EOF
+
+          echo "📄 Generated obfuscator.xml:"
+          cat obfuscator.xml
+
           echo "📂 Input DLLs:"
-          ls -la Kei.Base/bin/Release/net8.0/*.dll | grep "Kei.Base"
-          obfuscar.console obfuscator.xml
+          ls -la "$INPATH" | grep "Kei.Base"
+
+          obfuscar.console "$(pwd)/obfuscator.xml"
 
       # Step 8: Verify obfuscated output
       - name: Verify obfuscated output
