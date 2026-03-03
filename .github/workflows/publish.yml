@@ -48,19 +48,29 @@ jobs:
         run: |
           mkdir -p confused
 
-          # Generate obfuscator.xml in-place so no extra file needs to be committed
+          # Discover .NET 8 and ASP.NET Core 8 shared runtime paths dynamically
+          NETCORE_VER=$(ls /usr/share/dotnet/shared/Microsoft.NETCore.App | grep "^8\." | sort -V | tail -1)
+          NETCORE_PATH="/usr/share/dotnet/shared/Microsoft.NETCore.App/$NETCORE_VER"
+
+          ASPNET_VER=$(ls /usr/share/dotnet/shared/Microsoft.AspNetCore.App | grep "^8\." | sort -V | tail -1)
+          ASPNET_PATH="/usr/share/dotnet/shared/Microsoft.AspNetCore.App/$ASPNET_VER"
+
+          echo "✅ .NET Core path:    $NETCORE_PATH"
+          echo "✅ ASP.NET Core path: $ASPNET_PATH"
+
           INPATH="$(pwd)/Kei.Base/bin/Release/net8.0"
           OUTPATH="$(pwd)/confused"
 
           cat > obfuscator.xml <<EOF
           <?xml version='1.0'?>
           <Obfuscator>
-            <Var name="OutPath"          value="${OUTPATH}" />
-            <Var name="KeepPublicApi"    value="false" />
-            <Var name="HideStrings"      value="true"  />
-            <Var name="RenameProperties" value="true"  />
-            <Var name="RenameEvents"     value="true"  />
-            <Var name="RenameFields"     value="true"  />
+            <Var name="OutPath"               value="${OUTPATH}" />
+            <Var name="KeepPublicApi"         value="false" />
+            <Var name="HideStrings"           value="true"  />
+            <Var name="RenameProperties"      value="true"  />
+            <Var name="RenameEvents"          value="true"  />
+            <Var name="RenameFields"          value="true"  />
+            <Var name="ExtraFrameworkFolders" value="${NETCORE_PATH};${ASPNET_PATH}" />
             <Module file="${INPATH}/Kei.Base.dll"            />
             <Module file="${INPATH}/Kei.Base.Domain.dll"     />
             <Module file="${INPATH}/Kei.Base.Helper.dll"     />
