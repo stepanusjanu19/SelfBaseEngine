@@ -1,6 +1,7 @@
 ﻿using AutoMapper.QueryableExtensions;
 using AutoMapper;
 using Kei.Base.Helper;
+using Kei.Base.Helper.Security;
 using Kei.Base.Models;
 using Kei.Base.Domain.Mapping;
 using Kei.Base.Extensions;
@@ -52,7 +53,7 @@ namespace Kei.Base.Domain.Functions
 
         public virtual async Task<int> GetCountData(List<FilterCondition<TEntity>> conditions = null)
             => await GetQueryableByFilter(conditions).CountAsync();
-        
+
         public virtual (List<TDestination> Data, int TotalCount) GetPaginateWithQuery<TSource, TDestination>(
             IQueryable<TSource> baseQuery,
             int pageNumber,
@@ -123,6 +124,11 @@ namespace Kei.Base.Domain.Functions
         public virtual IOrderedQueryable<T> OrderByDynamic<T>(IQueryable<T> source, string columnName, bool ascending)
         {
             if (string.IsNullOrWhiteSpace(columnName))
+                return (IOrderedQueryable<T>)source;
+
+            // Security: sanitize to prevent SQL injection through dynamic ORDER BY
+            columnName = SqlGuard.SanitizeColumnName(columnName) ?? string.Empty;
+            if (string.IsNullOrEmpty(columnName))
                 return (IOrderedQueryable<T>)source;
 
             var entityType = _context.Model.FindEntityType(typeof(T));
@@ -243,7 +249,7 @@ namespace Kei.Base.Domain.Functions
                 ? OperationResult<TEntity>.Ok(entity)
                 : OperationResult<TEntity>.Fail("Entity not found.");
         }
-        
+
         public virtual TResult GetProjectedJoinByFilter<TJoin, TKey, TResult>(
             List<FilterCondition<TEntity>> conditions,
             Expression<Func<TEntity, TKey>> outerKeySelector,
@@ -287,7 +293,7 @@ namespace Kei.Base.Domain.Functions
                 return joinedQuery.AsEnumerable().FirstOrDefault();
             }
         }
-        
+
         public virtual async Task<TResult> GetProjectedJoinByFilterAsync<TJoin, TKey, TResult>(
             List<FilterCondition<TEntity>> conditions,
             Expression<Func<TEntity, TKey>> outerKeySelector,
@@ -333,7 +339,7 @@ namespace Kei.Base.Domain.Functions
                 return joinedQuery.AsEnumerable().FirstOrDefault();
             }
         }
-        
+
         public virtual async Task<List<TResult>> GetProjectedJoinListByFilterAsync<TJoin, TKey, TResult>(
             List<FilterCondition<TEntity>> conditions,
             Expression<Func<TEntity, TKey>> outerKeySelector,
@@ -747,7 +753,7 @@ namespace Kei.Base.Domain.Functions
 
                         var startValue = Convert.ChangeType(item1, targetType);
                         var endValue = Convert.ChangeType(item2, targetType);
-                        
+
                         var start = Expression.Constant(startValue, property.Type);
                         var end = Expression.Constant(endValue, property.Type);
 
@@ -867,8 +873,8 @@ namespace Kei.Base.Domain.Functions
                 return OperationResult.Fail($"Delete failed: {ex.InnerException?.Message ?? ex.Message}");
             }
         }
-        
-        
+
+
         public virtual async Task<OperationResult> DeleteAll(bool confirm = false)
         {
             if (!confirm)
@@ -1066,7 +1072,7 @@ namespace Kei.Base.Domain.Functions
         {
             return _dbSet.FromSqlRaw(sql, parameters).AsNoTracking().ToList();
         }
-        
+
         public virtual async Task<List<TEntity>> QueryRawSqlAsync(string sql, params object[] parameters)
         {
             return await _dbSet.FromSqlRaw(sql, parameters).AsNoTracking().ToListAsync();
@@ -1079,7 +1085,7 @@ namespace Kei.Base.Domain.Functions
 
         public virtual async Task<List<TEntity>> QueryRawSqlWithParamsAsync(string sql, Dictionary<string, object?> parameters)
         {
-                var provider = _context.Database.ProviderName ?? "";
+            var provider = _context.Database.ProviderName ?? "";
             var sqlParams = parameters.Select(p => ProviderParameter.Create(provider, p.Key, p.Value ?? DBNull.Value)).ToArray();
             return await _dbSet.FromSqlRaw(sql, sqlParams).AsNoTracking().ToListAsync();
         }
@@ -1088,6 +1094,9 @@ namespace Kei.Base.Domain.Functions
         {
             try
             {
+                // Security: validate procedure name to prevent injection
+                SqlGuard.AssertSafeProcName(procFullName);
+
                 using var command = _context.Database.GetDbConnection().CreateCommand();
                 command.CommandText = procFullName;
                 command.CommandType = CommandType.StoredProcedure;
@@ -1112,13 +1121,16 @@ namespace Kei.Base.Domain.Functions
                 _context.Database.CloseConnection();
             }
         }
-        
+
         public virtual OperationResult ExecuteProcedure(
             string procFullName,
             Dictionary<string, object?>? parameters = null)
         {
             try
             {
+                // Security: validate procedure name to prevent injection
+                SqlGuard.AssertSafeProcName(procFullName);
+
                 var provider = _context.Database.ProviderName ?? "";
                 string sql;
 
@@ -1145,7 +1157,7 @@ namespace Kei.Base.Domain.Functions
                     $"Execute query failed : {ex.InnerException?.Message ?? ex.Message}");
             }
         }
-        
+
         public virtual OperationResult ExecuteProcedureByContext(string procFullName, Dictionary<string, object?>? parameters = null)
         {
             try
@@ -1178,7 +1190,7 @@ namespace Kei.Base.Domain.Functions
                 return OperationResult.Fail($"ExecuteProcedure failed: {ex.InnerException?.Message ?? ex.Message}");
             }
         }
-        
+
         public async Task<T> ExecuteScalarAsync<T>(string sql, Dictionary<string, object?> parameters)
         {
             using var connection = _context.Database.GetDbConnection();
@@ -1201,9 +1213,12 @@ namespace Kei.Base.Domain.Functions
                 ? (T)Convert.ChangeType(result, typeof(T))
                 : default!;
         }
-        
+
         public async Task<decimal> GetNextSequenceValueAsync(string sequenceName)
         {
+            // Security: validate sequence name to prevent SQL injection via string interpolation
+            SqlGuard.AssertSafeSequenceName(sequenceName);
+
             string providerName = _context.Database.ProviderName ?? string.Empty;
             string sql;
 
@@ -1249,7 +1264,7 @@ namespace Kei.Base.Domain.Functions
                 await _context.Database.CloseConnectionAsync();
             }
         }
-        
+
         protected bool IsValidColumn<TEntity>(string columnName)
         {
             var entityType = _context.Model.FindEntityType(typeof(TEntity));
@@ -1465,7 +1480,7 @@ namespace Kei.Base.Domain.Functions
                     (f.GroupConditions?.Any() == true) ||
                     (f.Value != null && (!(f.Value is string s) || !string.IsNullOrWhiteSpace(s))))
                 .ToList();
-            
+
             // return normalizedFilters
             //     .Where(f => f.Value != null && (!(f.Value is string s) || !string.IsNullOrWhiteSpace(s)))
             //     .Select(f => new FilterCondition<TEntity>
@@ -1535,7 +1550,7 @@ namespace Kei.Base.Domain.Functions
         {
             return NormalizeFilter(new FilterInput<TProp>(property, values, op, isOr));
         }
-        
+
         protected NormalizedFilter FilterGroup(FilterGroupOperator groupOperator, params NormalizedFilter[] filters)
         {
             FilterOperator groupOp;
@@ -1622,7 +1637,7 @@ namespace Kei.Base.Domain.Functions
 
             throw new InvalidOperationException("Invalid property expression");
         }
-        
+
         private static MemberExpression GetMemberExpression<TEntity, TProperty>(
             ParameterExpression parameter,
             Expression<Func<TEntity, TProperty>> propertyExpression)

@@ -147,6 +147,7 @@ namespace Kei.Base.Helper
             return Encoding.UTF8.GetBytes(sb.ToString());
         }
 
+#nullable disable
         public static string DecodeOrNull(this string input, string ignoreValue = null)
         {
             if (string.IsNullOrEmpty(input)) return null;
@@ -160,9 +161,42 @@ namespace Kei.Base.Helper
             var encoded = DataEncrypt.base64Encode(input);
             return encoded == ignoreValue ? null : encoded;
         }
+#nullable restore
 
         public static string ToUpperSnakeCase(string input) =>
                 string.Concat(input.Select((c, i) =>
                     i > 0 && char.IsUpper(c) ? "_" + c : c.ToString())).ToUpper();
+
+        // ─── Security-Oriented String Extensions ──────────────────────────────────
+
+        /// <summary>
+        /// Sanitizes an HTML string to prevent XSS injection.
+        /// Removes script/iframe/object/style tags, event handler attributes,
+        /// and javascript: protocol links. Delegates to <see cref="Security.InputSanitizer.SanitizeHtml"/>.
+        /// </summary>
+        public static string SanitizeHtml(this string input)
+            => Security.InputSanitizer.SanitizeHtml(input);
+
+        /// <summary>
+        /// Strips all HTML tags from the string and returns plain text.
+        /// Delegates to <see cref="Security.InputSanitizer.StripHtmlTags"/>.
+        /// </summary>
+        public static string StripHtmlTags(this string input)
+            => Security.InputSanitizer.StripHtmlTags(input);
+
+        /// <summary>
+        /// Truncates the string to <paramref name="maxLength"/> characters,
+        /// respecting Unicode surrogate pairs. No exception is thrown for null input.
+        /// </summary>
+        public static string TruncateSafe(this string input, int maxLength)
+            => Security.InputSanitizer.MaxLength(input, maxLength);
+
+        /// <summary>
+        /// Returns <c>true</c> if the string contains only alphanumeric characters,
+        /// underscores, or hyphens — safe pattern for IDs and slugs.
+        /// Delegates to <see cref="Security.InputSanitizer.IsAlphanumericSafe"/>.
+        /// </summary>
+        public static bool IsAlphanumericSafe(this string input)
+            => Security.InputSanitizer.IsAlphanumericSafe(input);
     }
 }

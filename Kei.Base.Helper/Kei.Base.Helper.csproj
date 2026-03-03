@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\Kei.Base.Extensions\Kei.Base.Extensions.csproj" />
   </ItemGroup>
 

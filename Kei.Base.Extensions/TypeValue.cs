@@ -22,6 +22,68 @@ namespace Kei.Base.Extensions
         public const int KEYSIZE = 128;
     }
 
+    /// <summary>
+    /// Validates that <see cref="EnvironmentCrypto"/> constants have been overridden
+    /// from their insecure default values. Call <see cref="WarnIfUsingDefaults"/> at
+    /// application startup to surface this risk in logs.
+    ///
+    /// The existing <see cref="EnvironmentCrypto"/> constants are intentionally left
+    /// unchanged; this class only reports when defaults are still in use.
+    /// </summary>
+    public static class EnvironmentCryptoValidator
+    {
+        private const string DefaultPassphrase = "Pas5pr@se";
+        private const string DefaultSaltValue = "s@1tValue";
+        private const string DefaultInitVector = "@1B2c3D4e5F6g7H8";
+        private const int DefaultIterations = 2;
+        private const string DefaultHashAlgorithm = "SHA1";
+
+        /// <summary>
+        /// Writes a warning via <see cref="Console.Error" /> when any
+        /// <see cref="EnvironmentCrypto"/> constant still equals its insecure default.
+        /// Override these values in your application's configuration
+        /// (environment variables, secrets manager, etc.) before deploying to production.
+        /// </summary>
+        public static void WarnIfUsingDefaults()
+        {
+            var warnings = new System.Collections.Generic.List<string>();
+
+            if (EnvironmentCrypto.PASSPHRASE == DefaultPassphrase)
+                warnings.Add("PASSPHRASE is using the insecure default value.");
+
+            if (EnvironmentCrypto.SALTVALUE == DefaultSaltValue)
+                warnings.Add("SALTVALUE is using the insecure default value.");
+
+            if (EnvironmentCrypto.INITVECTOR == DefaultInitVector)
+                warnings.Add("INITVECTOR is using the insecure default value.");
+
+            if (EnvironmentCrypto.PASSWORDITERATIONS == DefaultIterations)
+                warnings.Add("PASSWORDITERATIONS is set to 2, which is dangerously low. Use at least 100,000 for PBKDF2.");
+
+            if (string.Equals(EnvironmentCrypto.HASHALGORITHM, DefaultHashAlgorithm, StringComparison.OrdinalIgnoreCase))
+                warnings.Add("HASHALGORITHM is SHA1, which is weak. Consider upgrading to SHA256 or SHA512.");
+
+            if (warnings.Count > 0)
+            {
+                Console.Error.WriteLine(
+                    $"[SECURITY WARNING] EnvironmentCrypto has {warnings.Count} insecure default value(s):");
+                foreach (var w in warnings)
+                    Console.Error.WriteLine($"  • {w}");
+                Console.Error.WriteLine(
+                    "  Override these values with secrets from your deployment environment before running in production.");
+            }
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when all crypto constants have been changed from their defaults.
+        /// </summary>
+        public static bool AllOverridden =>
+            EnvironmentCrypto.PASSPHRASE != DefaultPassphrase &&
+            EnvironmentCrypto.SALTVALUE != DefaultSaltValue &&
+            EnvironmentCrypto.INITVECTOR != DefaultInitVector &&
+            EnvironmentCrypto.PASSWORDITERATIONS > DefaultIterations;
+    }
+
     public struct TimeZoneAll
     {
         // UTC

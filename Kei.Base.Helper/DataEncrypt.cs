@@ -1,6 +1,7 @@
 ﻿using Kei.Base.Extensions;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -87,7 +88,9 @@ namespace Kei.Base.Helper
                 byte[] keyBytes = password.GetBytes(keySize / 8);
 
                 // Create uninitialized Rijndael encryption object.
+#pragma warning disable SYSLIB0022 // RijndaelManaged is obsolete — kept for backward compatibility. Use EncryptAes for new code.
                 RijndaelManaged symmetricKey = new RijndaelManaged();
+#pragma warning restore SYSLIB0022
 
                 // It is reasonable to set encryption mode to Cipher Block Chaining
                 // (CBC). Use default options for other symmetric key parameters.
@@ -172,7 +175,9 @@ namespace Kei.Base.Helper
                 byte[] keyBytes = password.GetBytes(keySize / 8);
 
                 // Create uninitialized Rijndael encryption object.
+#pragma warning disable SYSLIB0022 // RijndaelManaged is obsolete — kept for backward compatibility. Use DecryptAes for new code.
                 RijndaelManaged symmetricKey = new RijndaelManaged();
+#pragma warning restore SYSLIB0022
 
                 // It is reasonable to set encryption mode to Cipher Block Chaining
                 // (CBC). Use default options for other symmetric key parameters.
@@ -247,7 +252,9 @@ namespace Kei.Base.Helper
             }
             else if (hashAlgorithm.ToUpper() == "SHA1")
             {
+#pragma warning disable SYSLIB0021 // SHA1Managed is obsolete — kept for backward compatibility. Use ComputeHash(text, HashAlgorithmName.SHA256) for new code.
                 SHA1Managed sha1 = new SHA1Managed();
+#pragma warning restore SYSLIB0021
                 byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes(plainText);
                 byte[] hashmd5 = sha1.ComputeHash(inputBytes);
 
@@ -259,6 +266,163 @@ namespace Kei.Base.Helper
                 return sb.ToString();
             }
             return "";
+        }
+
+        // ─── AES-256 (Modern Replacement for RijndaelManaged) ─────────────────────
+
+        /// <summary>
+        /// Encrypts <paramref name="plainText"/> using AES-256-CBC with a random IV.
+        /// The key is derived from <see cref="EnvironmentCrypto"/> when not supplied.
+        /// Returns a Base64 string: [16-byte IV] + [cipher text].
+        /// </summary>
+        /// <param name="plainText">The plain text to encrypt.</param>
+        /// <param name="base64Key">Optional Base64-encoded 32-byte key. Defaults to <see cref="EnvironmentCrypto.PASSPHRASE"/>-derived key.</param>
+        public static string EncryptAes(string plainText, string? base64Key = null)
+        {
+            if (string.IsNullOrEmpty(plainText)) return plainText ?? string.Empty;
+
+            try
+            {
+                var key = ResolveAesKey(base64Key);
+
+                using var aes = Aes.Create();
+                aes.Key = key;
+                aes.Mode = CipherMode.CBC;
+                aes.GenerateIV();
+
+                using var encryptor = aes.CreateEncryptor();
+                using var ms = new MemoryStream();
+
+                // Prepend IV so decryption can recover it
+                ms.Write(aes.IV, 0, aes.IV.Length);
+
+                using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+                {
+                    var plainBytes = Encoding.UTF8.GetBytes(plainText);
+                    cs.Write(plainBytes, 0, plainBytes.Length);
+                    cs.FlushFinalBlock();
+                }
+
+                return Convert.ToBase64String(ms.ToArray());
+            }
+            catch
+            {
+                return plainText;
+            }
+        }
+
+        /// <summary>
+        /// Decrypts an AES-256-CBC cipher text produced by <see cref="EncryptAes"/>.
+        /// Expects the Base64 input to contain [16-byte IV] + [cipher text].
+        /// </summary>
+        /// <param name="cipherText">Base64 cipher text as returned by <see cref="EncryptAes"/>.</param>
+        /// <param name="base64Key">Optional Base64-encoded 32-byte key. Defaults to <see cref="EnvironmentCrypto.PASSPHRASE"/>-derived key.</param>
+        public static string DecryptAes(string cipherText, string? base64Key = null)
+        {
+            if (string.IsNullOrEmpty(cipherText)) return cipherText ?? string.Empty;
+
+            try
+            {
+                var key = ResolveAesKey(base64Key);
+                var fullBytes = Convert.FromBase64String(cipherText);
+
+                if (fullBytes.Length < 16)
+                    return cipherText;
+
+                var iv = fullBytes[..16];
+                var encrypted = fullBytes[16..];
+
+                using var aes = Aes.Create();
+                aes.Key = key;
+                aes.IV = iv;
+                aes.Mode = CipherMode.CBC;
+
+                using var decryptor = aes.CreateDecryptor();
+                using var ms = new MemoryStream(encrypted);
+                using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+                using var sr = new System.IO.StreamReader(cs, Encoding.UTF8);
+
+                return sr.ReadToEnd();
+            }
+            catch
+            {
+                return cipherText;
+            }
+        }
+
+        /// <summary>
+        /// Computes a hash of <paramref name="plainText"/> using the specified
+        /// <see cref="HashAlgorithmName"/>. Supports SHA256, SHA512, SHA384, SHA1, MD5.
+        /// Prefers SHA256 or stronger for new code.
+        /// </summary>
+        /// <param name="plainText">String to hash.</param>
+        /// <param name="algorithm">Hash algorithm (e.g. <see cref="HashAlgorithmName.SHA256"/>).</param>
+        public static string ComputeHash(string plainText, HashAlgorithmName algorithm)
+        {
+            if (string.IsNullOrEmpty(plainText)) return string.Empty;
+
+            var inputBytes = Encoding.UTF8.GetBytes(plainText);
+            byte[] hashBytes;
+
+            if (algorithm == HashAlgorithmName.SHA256)
+                hashBytes = SHA256.HashData(inputBytes);
+            else if (algorithm == HashAlgorithmName.SHA512)
+                hashBytes = SHA512.HashData(inputBytes);
+            else if (algorithm == HashAlgorithmName.SHA384)
+                hashBytes = SHA384.HashData(inputBytes);
+            else if (algorithm == HashAlgorithmName.SHA1)
+            {
+#pragma warning disable CA5350 // SHA1 is weak — provided for legacy compatibility only
+                hashBytes = SHA1.HashData(inputBytes);
+#pragma warning restore CA5350
+            }
+            else if (algorithm == HashAlgorithmName.MD5)
+            {
+#pragma warning disable CA5351 // MD5 is weak — provided for legacy compatibility only
+                hashBytes = MD5.HashData(inputBytes);
+#pragma warning restore CA5351
+            }
+            else
+            {
+#pragma warning disable SYSLIB0045 // HashAlgorithm.Create(string) is obsolete — used as fallback for unknown algorithm names
+                using var ha = System.Security.Cryptography.HashAlgorithm.Create(algorithm.Name!)!;
+#pragma warning restore SYSLIB0045
+                hashBytes = ha.ComputeHash(inputBytes);
+            }
+
+            return Convert.ToHexString(hashBytes).ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Zeroes a byte array in memory to reduce the window in which
+        /// sensitive key material remains accessible. Safe to call with <c>null</c>.
+        /// </summary>
+        public static void SecureClear(byte[]? buffer)
+        {
+            if (buffer == null) return;
+            CryptographicOperations.ZeroMemory(buffer);
+        }
+
+        // ─── Private Helpers ──────────────────────────────────────────────────────
+
+        private static byte[] ResolveAesKey(string? base64Key)
+        {
+            if (!string.IsNullOrEmpty(base64Key))
+            {
+                var k = Convert.FromBase64String(base64Key);
+                if (k.Length != 32)
+                    throw new ArgumentException("AES key must be exactly 32 bytes (256 bits).", nameof(base64Key));
+                return k;
+            }
+
+            // Derive a 256-bit key from the existing EnvironmentCrypto passphrase using PBKDF2
+            var salt = Encoding.ASCII.GetBytes(EnvironmentCrypto.SALTVALUE);
+            using var kdf = new Rfc2898DeriveBytes(
+                EnvironmentCrypto.PASSPHRASE,
+                salt,
+                EnvironmentCrypto.PASSWORDITERATIONS,
+                HashAlgorithmName.SHA256);
+            return kdf.GetBytes(32);
         }
     }
 }
