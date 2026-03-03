@@ -14,10 +14,14 @@
   <module path="Kei.Base.Extensions.dll" />
 
   <!--
-    IMPORTANT: ConfuserEx v1.6.0 uses singular <probePath> elements (not <probePaths> wrapper),
-    and reads InnerText (not a 'value' attribute). These placeholders are substituted by CI.
-    Element format MUST be: <probePath>/path/here</probePath>
+    ConfuserEx v1.6.0 uses singular <probePath> with InnerText = path.
+    Placeholders below are substituted by CI workflow via sed before running mono.
+    Four paths needed:
+      1. .NET Core App runtime       (System.*, netstandard, etc.)
+      2. .NET Core App ref pack      (additional ref DLLs)
+      3. ASP.NET Core App runtime    (Microsoft.AspNetCore.*, Microsoft.AspNetCore.Mvc.Core, etc.)
   -->
-  <probePath>DOTNET_REF_PATH</probePath>
   <probePath>DOTNET_RUNTIME_PATH</probePath>
+  <probePath>DOTNET_REF_PATH</probePath>
+  <probePath>ASPNETCORE_RUNTIME_PATH</probePath>
 </project>
