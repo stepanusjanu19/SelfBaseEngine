@@ -30,43 +30,44 @@ jobs:
       - name: Build solution
         run: dotnet build Kei.Base/Kei.Base.sln --configuration Release --no-restore
 
-      # Step 5: Copy sibling project DLLs into Kei.Base output dir for obfuscation
-      - name: Copy dependencies for obfuscation
-        run: |
-          cp Kei.Base.Domain/bin/Release/net8.0/Kei.Base.Domain.dll        Kei.Base/bin/Release/net8.0/
-          cp Kei.Base.Extensions/bin/Release/net8.0/Kei.Base.Extensions.dll Kei.Base/bin/Release/net8.0/
-          cp Kei.Base.Helper/bin/Release/net8.0/Kei.Base.Helper.dll         Kei.Base/bin/Release/net8.0/
-
-      # Step 6: Install Obfuscar — a .NET 8-native obfuscator (no Mono required)
-      #   ConfuserEx v1.6.0 on Mono cannot handle .NET 8 assemblies or EF Core 9.x.
-      #   Obfuscar runs directly via 'dotnet tool' and resolves all dependencies natively.
+      # Step 5: Install Obfuscar
       - name: Install Obfuscar
         run: dotnet tool install --global Obfuscar.GlobalTool
 
-      # Step 7: Create output directory and obfuscate assemblies
+      # Step 6: Self-contained publish Kei.Base.Helper (it has the widest dependency surface —
+      #   ASP.NET Core + EF Core 8 + EF Core 9 via Domain). Publishing self-contained copies
+      #   ALL framework DLLs (including Microsoft.AspNetCore.Mvc.Core) into one flat directory,
+      #   solving Obfuscar's InheritMap assembly resolution issue.
+      - name: Self-contained publish for framework deps
+        run: |
+          dotnet publish Kei.Base.Helper/Kei.Base.Helper.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            --output sc_publish \
+            --no-restore
+
+          echo "📂 sc_publish DLL count: $(ls sc_publish/*.dll | wc -l)"
+
+      # Step 7: Overlay the freshly-built project DLLs into sc_publish so Obfuscar obfuscates
+      #   the correct (just-built) versions, not whatever publish produced.
+      - name: Overlay project DLLs into publish dir
+        run: |
+          cp Kei.Base/bin/Release/net8.0/Kei.Base.dll                        sc_publish/
+          cp Kei.Base.Domain/bin/Release/net8.0/Kei.Base.Domain.dll          sc_publish/
+          cp Kei.Base.Helper/bin/Release/net8.0/Kei.Base.Helper.dll          sc_publish/
+          cp Kei.Base.Extensions/bin/Release/net8.0/Kei.Base.Extensions.dll  sc_publish/
+
+          echo "✅ Overlaid project DLLs. Total DLLs: $(ls sc_publish/*.dll | wc -l)"
+
+      # Step 8: Obfuscate the 4 project DLLs using sc_publish as InPath so ALL framework
+      #   assemblies (ASP.NET Core, .NET Core, EF Core 9) are resolvable.
       - name: Obfuscate assemblies
         run: |
           mkdir -p confused
 
-          # Discover .NET 8 and ASP.NET Core 8 shared runtime paths dynamically
-          NETCORE_VER=$(ls /usr/share/dotnet/shared/Microsoft.NETCore.App | grep "^8\." | sort -V | tail -1)
-          NETCORE_PATH="/usr/share/dotnet/shared/Microsoft.NETCore.App/$NETCORE_VER"
-
-          ASPNET_VER=$(ls /usr/share/dotnet/shared/Microsoft.AspNetCore.App | grep "^8\." | sort -V | tail -1)
-          ASPNET_PATH="/usr/share/dotnet/shared/Microsoft.AspNetCore.App/$ASPNET_VER"
-
-          INPATH="$(pwd)/Kei.Base/bin/Release/net8.0"
+          INPATH="$(pwd)/sc_publish"
           OUTPATH="$(pwd)/confused"
-
-          echo "✅ .NET Core path:    $NETCORE_PATH"
-          echo "✅ ASP.NET Core path: $ASPNET_PATH"
-
-          # Copy framework DLLs into InPath so Obfuscar can resolve them.
-          # Use -n (no-clobber) so we never overwrite the project's own built DLLs.
-          cp -n "$NETCORE_PATH"/*.dll  "$INPATH/" || true
-          cp -n "$ASPNET_PATH"/*.dll   "$INPATH/" || true
-
-          echo "📂 InPath DLL count after copy: $(ls "$INPATH"/*.dll | wc -l)"
 
           cat > obfuscator.xml <<EOF
           <?xml version='1.0'?>
@@ -87,34 +88,31 @@ jobs:
           echo "📄 Generated obfuscator.xml:"
           cat obfuscator.xml
 
-          echo "📂 Input DLLs:"
-          ls -la "$INPATH" | grep "Kei.Base"
-
           obfuscar.console "$(pwd)/obfuscator.xml"
 
-      # Step 8: Verify obfuscated output
+      # Step 9: Verify obfuscated output
       - name: Verify obfuscated output
         run: |
           echo "📂 Obfuscated DLLs:"
-          ls -la confused/
+          ls -la confused/*.dll
 
-      # Step 9: Replace DLLs with obfuscated versions
+      # Step 10: Copy obfuscated DLLs back to each project's bin dir for nuget pack
       - name: Replace DLLs with obfuscated versions
         run: |
           cp confused/Kei.Base.dll            Kei.Base/bin/Release/net8.0/
-          cp confused/Kei.Base.Domain.dll     Kei.Base/bin/Release/net8.0/
-          cp confused/Kei.Base.Helper.dll     Kei.Base/bin/Release/net8.0/
-          cp confused/Kei.Base.Extensions.dll Kei.Base/bin/Release/net8.0/
+          cp confused/Kei.Base.Domain.dll     Kei.Base.Domain/bin/Release/net8.0/
+          cp confused/Kei.Base.Helper.dll     Kei.Base.Helper/bin/Release/net8.0/
+          cp confused/Kei.Base.Extensions.dll Kei.Base.Extensions/bin/Release/net8.0/
 
-      # Step 10: Pack all projects into NuGet packages
+      # Step 11: Pack all projects into NuGet packages
       - name: Pack NuGet packages
         run: |
-          dotnet pack Kei.Base/Kei.Base.csproj                              -c Release -o ./artifacts
-          dotnet pack Kei.Base.Domain/Kei.Base.Domain.csproj                -c Release -o ./artifacts
-          dotnet pack Kei.Base.Extensions/Kei.Base.Extensions.csproj        -c Release -o ./artifacts
-          dotnet pack Kei.Base.Helper/Kei.Base.Helper.csproj                -c Release -o ./artifacts
+          dotnet pack Kei.Base/Kei.Base.csproj                              -c Release --no-build -o ./artifacts
+          dotnet pack Kei.Base.Domain/Kei.Base.Domain.csproj                -c Release --no-build -o ./artifacts
+          dotnet pack Kei.Base.Extensions/Kei.Base.Extensions.csproj        -c Release --no-build -o ./artifacts
+          dotnet pack Kei.Base.Helper/Kei.Base.Helper.csproj                -c Release --no-build -o ./artifacts
 
-      # Step 11: Publish packages to NuGet (only on tagged commits or master)
+      # Step 12: Publish packages to NuGet (only on tagged commits or master)
       - name: Publish to NuGet
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
         run: |
