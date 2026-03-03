@@ -33,98 +33,47 @@ jobs:
       # Step 5: Copy sibling project DLLs into Kei.Base output dir for obfuscation
       - name: Copy dependencies for obfuscation
         run: |
-          cp Kei.Base.Domain/bin/Release/net8.0/Kei.Base.Domain.dll       Kei.Base/bin/Release/net8.0/
+          cp Kei.Base.Domain/bin/Release/net8.0/Kei.Base.Domain.dll        Kei.Base/bin/Release/net8.0/
           cp Kei.Base.Extensions/bin/Release/net8.0/Kei.Base.Extensions.dll Kei.Base/bin/Release/net8.0/
-          cp Kei.Base.Helper/bin/Release/net8.0/Kei.Base.Helper.dll        Kei.Base/bin/Release/net8.0/
+          cp Kei.Base.Helper/bin/Release/net8.0/Kei.Base.Helper.dll         Kei.Base/bin/Release/net8.0/
 
-      # Step 6: Discover the exact .NET 8 runtime paths installed on this runner.
-      #   GitHub-hosted runners install the latest 8.0.x patch — the exact version
-      #   changes over time, so we locate it dynamically rather than hardcoding "8.0.0".
-      - name: Resolve .NET runtime paths
-        id: dotnet_paths
-        run: |
-          # .NET Core App ref pack (System.*, netstandard, etc.)
-          REF_BASE="/usr/share/dotnet/packs/Microsoft.NETCore.App.Ref"
-          REF_VERSION=$(ls "$REF_BASE" | grep "^8\." | sort -V | tail -1)
-          REF_PATH="$REF_BASE/$REF_VERSION/ref/net8.0"
+      # Step 6: Install Obfuscar — a .NET 8-native obfuscator (no Mono required)
+      #   ConfuserEx v1.6.0 on Mono cannot handle .NET 8 assemblies or EF Core 9.x.
+      #   Obfuscar runs directly via 'dotnet tool' and resolves all dependencies natively.
+      - name: Install Obfuscar
+        run: dotnet tool install --global Obfuscar.GlobalTool
 
-          # .NET Core App shared runtime
-          RUNTIME_BASE="/usr/share/dotnet/shared/Microsoft.NETCore.App"
-          RUNTIME_VERSION=$(ls "$RUNTIME_BASE" | grep "^8\." | sort -V | tail -1)
-          RUNTIME_PATH="$RUNTIME_BASE/$RUNTIME_VERSION"
-
-          # ASP.NET Core App shared runtime (Microsoft.AspNetCore.Mvc.Core etc.)
-          ASPNETCORE_BASE="/usr/share/dotnet/shared/Microsoft.AspNetCore.App"
-          ASPNETCORE_VERSION=$(ls "$ASPNETCORE_BASE" | grep "^8\." | sort -V | tail -1)
-          ASPNETCORE_RUNTIME_PATH="$ASPNETCORE_BASE/$ASPNETCORE_VERSION"
-
-          echo "REF_PATH=$REF_PATH"                         >> "$GITHUB_OUTPUT"
-          echo "RUNTIME_PATH=$RUNTIME_PATH"                 >> "$GITHUB_OUTPUT"
-          echo "ASPNETCORE_RUNTIME_PATH=$ASPNETCORE_RUNTIME_PATH" >> "$GITHUB_OUTPUT"
-
-          echo "✅ Ref path:              $REF_PATH"
-          echo "✅ Runtime path:          $RUNTIME_PATH"
-          echo "✅ ASP.NET Core path:     $ASPNETCORE_RUNTIME_PATH"
-
-      # Step 7: Patch confuser.crproj with the real runtime paths
-      - name: Patch ConfuserEx probe paths
-        run: |
-          sed -i \
-            -e "s|DOTNET_RUNTIME_PATH|${{ steps.dotnet_paths.outputs.RUNTIME_PATH }}|g" \
-            -e "s|DOTNET_REF_PATH|${{ steps.dotnet_paths.outputs.REF_PATH }}|g" \
-            -e "s|ASPNETCORE_RUNTIME_PATH|${{ steps.dotnet_paths.outputs.ASPNETCORE_RUNTIME_PATH }}|g" \
-            confuser.crproj
-          echo "📄 Patched confuser.crproj:"
-          cat confuser.crproj
-
-      # Step 8: Install Mono
-      - name: Install Mono
-        run: sudo apt-get update && sudo apt-get install -y mono-runtime unzip
-
-      # Step 9: Download ConfuserEx CLI
-      - name: Download ConfuserEx
-        run: |
-          curl -L -o confuserex.zip https://github.com/mkaring/ConfuserEx/releases/download/v1.6.0/ConfuserEx-CLI.zip
-          unzip confuserex.zip -d confuserex
-
-      # Step 10: Verify build output and DLL permissions before obfuscation
-      - name: Debug build output
-        run: |
-          echo "📂 Kei.Base output directory:"
-          ls -la Kei.Base/bin/Release/net8.0/
-          echo "📄 Patched confuser.crproj:"
-          cat confuser.crproj
-
-      # Step 11: Obfuscate assemblies with ConfuserEx
+      # Step 7: Create output directory and obfuscate assemblies
       - name: Obfuscate assemblies
         run: |
-          chmod +r Kei.Base/bin/Release/net8.0/*.dll
           mkdir -p confused
-          mono confuserex/Confuser.CLI.exe -n confuser.crproj
+          echo "📂 Input DLLs:"
+          ls -la Kei.Base/bin/Release/net8.0/*.dll | grep "Kei.Base"
+          obfuscar.console obfuscator.xml
 
-      # Step 12: Verify obfuscated output
+      # Step 8: Verify obfuscated output
       - name: Verify obfuscated output
         run: |
           echo "📂 Obfuscated DLLs:"
           ls -la confused/
 
-      # Step 13: Replace DLLs with obfuscated versions
+      # Step 9: Replace DLLs with obfuscated versions
       - name: Replace DLLs with obfuscated versions
         run: |
-          cp confused/Kei.Base.dll           Kei.Base/bin/Release/net8.0/
-          cp confused/Kei.Base.Domain.dll    Kei.Base/bin/Release/net8.0/
-          cp confused/Kei.Base.Helper.dll    Kei.Base/bin/Release/net8.0/
+          cp confused/Kei.Base.dll            Kei.Base/bin/Release/net8.0/
+          cp confused/Kei.Base.Domain.dll     Kei.Base/bin/Release/net8.0/
+          cp confused/Kei.Base.Helper.dll     Kei.Base/bin/Release/net8.0/
           cp confused/Kei.Base.Extensions.dll Kei.Base/bin/Release/net8.0/
 
-      # Step 14: Pack all projects into NuGet packages
+      # Step 10: Pack all projects into NuGet packages
       - name: Pack NuGet packages
         run: |
-          dotnet pack Kei.Base/Kei.Base.csproj               -c Release -o ./artifacts
-          dotnet pack Kei.Base.Domain/Kei.Base.Domain.csproj  -c Release -o ./artifacts
-          dotnet pack Kei.Base.Extensions/Kei.Base.Extensions.csproj -c Release -o ./artifacts
-          dotnet pack Kei.Base.Helper/Kei.Base.Helper.csproj  -c Release -o ./artifacts
+          dotnet pack Kei.Base/Kei.Base.csproj                              -c Release -o ./artifacts
+          dotnet pack Kei.Base.Domain/Kei.Base.Domain.csproj                -c Release -o ./artifacts
+          dotnet pack Kei.Base.Extensions/Kei.Base.Extensions.csproj        -c Release -o ./artifacts
+          dotnet pack Kei.Base.Helper/Kei.Base.Helper.csproj                -c Release -o ./artifacts
 
-      # Step 15: Publish packages to NuGet (only on tagged commits or master)
+      # Step 11: Publish packages to NuGet (only on tagged commits or master)
       - name: Publish to NuGet
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
         run: |
