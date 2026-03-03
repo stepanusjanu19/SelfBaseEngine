@@ -55,17 +55,16 @@ jobs:
           cat > obfuscator.xml <<EOF
           <?xml version='1.0'?>
           <Obfuscator>
-            <Var name="InPath"           value="${INPATH}" />
             <Var name="OutPath"          value="${OUTPATH}" />
             <Var name="KeepPublicApi"    value="false" />
             <Var name="HideStrings"      value="true"  />
             <Var name="RenameProperties" value="true"  />
             <Var name="RenameEvents"     value="true"  />
             <Var name="RenameFields"     value="true"  />
-            <Module file="\${InPath}/Kei.Base.dll"            />
-            <Module file="\${InPath}/Kei.Base.Domain.dll"     />
-            <Module file="\${InPath}/Kei.Base.Helper.dll"     />
-            <Module file="\${InPath}/Kei.Base.Extensions.dll" />
+            <Module file="${INPATH}/Kei.Base.dll"            />
+            <Module file="${INPATH}/Kei.Base.Domain.dll"     />
+            <Module file="${INPATH}/Kei.Base.Helper.dll"     />
+            <Module file="${INPATH}/Kei.Base.Extensions.dll" />
           </Obfuscator>
           EOF
 
