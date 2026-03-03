@@ -7,19 +7,17 @@
     <protection id="constants" />
   </rule>
 
-  <!-- All project DLLs -->
+  <!-- All project DLLs to obfuscate -->
   <module path="Kei.Base.dll" />
   <module path="Kei.Base.Domain.dll" />
   <module path="Kei.Base.Helper.dll" />
   <module path="Kei.Base.Extensions.dll" />
 
   <!--
-    probePaths are injected by the CI workflow dynamically via sed/replace
-    so that the exact .NET runtime version on the runner is used.
-    See: .github/workflows/publish.yml "Patch ConfuserEx probe paths" step.
+    IMPORTANT: ConfuserEx v1.6.0 uses singular <probePath> elements (not <probePaths> wrapper),
+    and reads InnerText (not a 'value' attribute). These placeholders are substituted by CI.
+    Element format MUST be: <probePath>/path/here</probePath>
   -->
-  <probePaths>
-    <path value="DOTNET_REF_PATH" />
-    <path value="DOTNET_RUNTIME_PATH" />
-  </probePaths>
+  <probePath>DOTNET_REF_PATH</probePath>
+  <probePath>DOTNET_RUNTIME_PATH</probePath>
 </project>
