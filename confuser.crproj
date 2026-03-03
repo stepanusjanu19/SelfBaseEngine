@@ -13,8 +13,13 @@
   <module path="Kei.Base.Helper.dll" />
   <module path="Kei.Base.Extensions.dll" />
 
+  <!--
+    probePaths are injected by the CI workflow dynamically via sed/replace
+    so that the exact .NET runtime version on the runner is used.
+    See: .github/workflows/publish.yml "Patch ConfuserEx probe paths" step.
+  -->
   <probePaths>
-    <path value="/usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.0/ref/net8.0" />
-    <path value="/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.0" />
+    <path value="DOTNET_REF_PATH" />
+    <path value="DOTNET_RUNTIME_PATH" />
   </probePaths>
 </project>
