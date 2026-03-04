@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <project outputDir="confused" baseDir="./Kei.Base/bin/Release/net8.0">
   <rule pattern="true" preset="none" inherit="false">
-    <protection id="rename" />
     <protection id="ctrl flow" />
   </rule>
 
