@@ -4,14 +4,17 @@ on:
   push:
     branches:
       - master
-    tags:
-      - 'v*.*.*'
+    # Tags trigger intentionally removed — the workflow auto-creates tags during the
+    # version-bump step. If we also triggered on tags, every auto-tag would start another
+    # run, causing an infinite loop. Trigger on master push only.
 
 jobs:
   build:
     # Windows runner: ConfuserEx runs on .NET Framework natively — no Mono, no registry errors,
     # and Windows assembly resolution handles ASP.NET Core + EF Core correctly.
     runs-on: windows-latest
+    # Extra guard: skip if this run was triggered by the bot's own version-bump commit
+    if: github.actor != 'github-actions[bot]'
     permissions:
       contents: write   # required for git push (version bump commit + tag)
 
