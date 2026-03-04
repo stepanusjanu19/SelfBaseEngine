@@ -124,16 +124,20 @@ jobs:
           Copy-Item confused\Kei.Base.Extensions.dll Kei.Base.Extensions\bin\Release\net8.0\ -Force
 
       - name: Pack NuGet packages
+        shell: pwsh
         run: |
-          dotnet pack Kei.Base/Kei.Base.csproj               -c Release --no-build -o ./artifacts
-          dotnet pack Kei.Base.Domain/Kei.Base.Domain.csproj  -c Release --no-build -o ./artifacts
-          dotnet pack Kei.Base.Extensions/Kei.Base.Extensions.csproj -c Release --no-build -o ./artifacts
-          dotnet pack Kei.Base.Helper/Kei.Base.Helper.csproj  -c Release --no-build -o ./artifacts
+          dotnet pack Kei.Base\Kei.Base.csproj                              -c Release --no-build -o .\artifacts
+          dotnet pack Kei.Base.Domain\Kei.Base.Domain.csproj                -c Release --no-build -o .\artifacts
+          dotnet pack Kei.Base.Extensions\Kei.Base.Extensions.csproj        -c Release --no-build -o .\artifacts
+          dotnet pack Kei.Base.Helper\Kei.Base.Helper.csproj                -c Release --no-build -o .\artifacts
 
       - name: Publish to NuGet
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
         run: |
-          dotnet nuget push "./artifacts/*.nupkg" \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
-            --source https://api.nuget.org/v3/index.json \
+          Write-Host "Checking packed artifacts..."
+          Get-ChildItem .\artifacts
+          dotnet nuget push ".\artifacts\*.nupkg" `
+            --api-key ${{ secrets.NUGET_API_KEY }} `
+            --source https://api.nuget.org/v3/index.json `
             --skip-duplicate
