@@ -61,10 +61,21 @@ jobs:
           $netcoreVer  = (Get-ChildItem $netcoreBase | Where-Object Name -Like "8.*" | Sort-Object Name -Descending | Select-Object -First 1).Name
           $netcorePath = "$netcoreBase\$netcoreVer"
 
+          # Domain bin has EF Core 9.0.6; Helper bin has EF Core 8.x — both needed
+          $domainBin = "${{ github.workspace }}\Kei.Base.Domain\bin\Release\net8.0"
+          $helperBin = "${{ github.workspace }}\Kei.Base.Helper\bin\Release\net8.0"
+
+          # NuGet cache fallback for EF Core 9.0.6
+          $nugetPkgs  = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { "$env:USERPROFILE\.nuget\packages" }
+          $efCore9    = "$nugetPkgs\microsoft.entityframeworkcore\9.0.6\lib\net8.0"
+          $efRelat9   = "$nugetPkgs\microsoft.entityframeworkcore.relational\9.0.6\lib\net8.0"
+
           Write-Host "baseDir:      $baseDir"
           Write-Host "outDir:       $outDir"
           Write-Host ".NET Core:    $netcorePath"
           Write-Host "ASP.NET Core: $aspnetPath"
+          Write-Host "Domain bin:   $domainBin"
+          Write-Host "EF Core 9:    $efCore9"
 
           $xml = @(
             "<?xml version=`"1.0`" encoding=`"utf-8`" ?>",
@@ -81,6 +92,10 @@ jobs:
             "  <module path=`"Kei.Base.Extensions.dll`" />",
             "  <probePath>$netcorePath</probePath>",
             "  <probePath>$aspnetPath</probePath>",
+            "  <probePath>$domainBin</probePath>",
+            "  <probePath>$helperBin</probePath>",
+            "  <probePath>$efCore9</probePath>",
+            "  <probePath>$efRelat9</probePath>",
             "</project>"
           )
           $xml | Set-Content -Path confuser.crproj -Encoding UTF8
