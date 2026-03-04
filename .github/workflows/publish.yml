@@ -44,8 +44,7 @@ jobs:
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
-            --output sc_publish \
-            --no-restore
+            --output sc_publish
 
           echo "📂 sc_publish DLL count: $(ls sc_publish/*.dll | wc -l)"
 
