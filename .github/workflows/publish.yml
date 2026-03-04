@@ -123,6 +123,36 @@ jobs:
           Copy-Item confused\Kei.Base.Helper.dll     Kei.Base.Helper\bin\Release\net8.0\ -Force
           Copy-Item confused\Kei.Base.Extensions.dll Kei.Base.Extensions\bin\Release\net8.0\ -Force
 
+      - name: Bump patch version
+        shell: pwsh
+        run: |
+          # Read current version from Kei.Base.csproj and increment patch
+          $content  = Get-Content Kei.Base\Kei.Base.csproj -Raw
+          if ($content -match '<Version>(\d+)\.(\d+)\.(\d+)</Version>') {
+            $major   = $matches[1]
+            $minor   = $matches[2]
+            $patch   = [int]$matches[3] + 1
+            $newVer  = "$major.$minor.$patch"
+          } else {
+            $newVer = "1.0.1"
+          }
+          Write-Host "New version: $newVer"
+          echo "PKG_VERSION=$newVer" >> $env:GITHUB_ENV
+
+          # Apply to all project csproj files
+          $projFiles = @(
+            "Kei.Base\Kei.Base.csproj",
+            "Kei.Base.Domain\Kei.Base.Domain.csproj",
+            "Kei.Base.Extensions\Kei.Base.Extensions.csproj",
+            "Kei.Base.Helper\Kei.Base.Helper.csproj"
+          )
+          foreach ($f in $projFiles) {
+            (Get-Content $f -Raw) `
+              -replace '<Version>\d+\.\d+\.\d+</Version>', "<Version>$newVer</Version>" |
+              Set-Content $f
+            Write-Host "Updated $f -> $newVer"
+          }
+
       - name: Pack NuGet packages
         shell: pwsh
         run: |
