@@ -12,10 +12,14 @@ jobs:
     # Windows runner: ConfuserEx runs on .NET Framework natively — no Mono, no registry errors,
     # and Windows assembly resolution handles ASP.NET Core + EF Core correctly.
     runs-on: windows-latest
+    permissions:
+      contents: write   # required for git push (version bump commit + tag)
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed so git push back to master works
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -152,6 +156,42 @@ jobs:
               Set-Content $f
             Write-Host "Updated $f -> $newVer"
           }
+
+      - name: Commit version bump
+        shell: pwsh
+        run: |
+          $v = $env:PKG_VERSION
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage all updated csproj files
+          git add Kei.Base\Kei.Base.csproj
+          git add Kei.Base.Domain\Kei.Base.Domain.csproj
+          git add Kei.Base.Extensions\Kei.Base.Extensions.csproj
+          git add Kei.Base.Helper\Kei.Base.Helper.csproj
+
+          # Commit and tag — skip if nothing changed (e.g. re-run on same commit)
+          $status = git status --porcelain
+          if ($status) {
+            git commit -m "chore: bump version to $v [skip ci]"
+            Write-Host "Committed version bump -> $v"
+          } else {
+            Write-Host "No csproj changes to commit (already up to date)"
+          }
+
+          # Create an annotated tag for this release
+          git tag -a "v$v" -m "Release v$v" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Tagged v$v"
+          } else {
+            Write-Host "Tag v$v already exists — skipping"
+          }
+
+          # Push commit + tag back to master
+          git push origin HEAD:master --follow-tags
+          Write-Host "Pushed v$v to master"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pack NuGet packages
         shell: pwsh
