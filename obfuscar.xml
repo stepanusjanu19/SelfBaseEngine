@@ -1,0 +1,21 @@
+<?xml version='1.0'?>
+<Obfuscator>
+    <Var name="InPath" value="." />
+    <!-- OutPath will be specified at the command line in the csproj to target the specific output dir -->
+    <Var name="OutPath" value="." />
+    
+    <Var name="KeepPublicApi" value="true" />
+    <Var name="HidePrivateApi" value="true" />
+    <Var name="RenameProperties" value="true" />
+    <Var name="RenameEvents" value="true" />
+    <Var name="RenameFields" value="true" />
+    <Var name="UseUnicodeNames" value="true" />
+    <Var name="HideStrings" value="true" />
+    <Var name="OptimizeMethods" value="true" />
+    <Var name="SuppressIldasm" value="true" />
+
+    <Module file="$(InPath)/Kei.Base.dll" />
+    <Module file="$(InPath)/Kei.Base.Domain.dll" />
+    <Module file="$(InPath)/Kei.Base.Extensions.dll" />
+    <Module file="$(InPath)/Kei.Base.Helper.dll" />
+</Obfuscator>

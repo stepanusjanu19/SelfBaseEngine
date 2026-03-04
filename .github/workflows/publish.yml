@@ -37,13 +37,18 @@ jobs:
 
 
       # ────────────────────────────────────────────────────────
-      # NOTE: ConfuserEx 1.6 obfuscation has been disabled.
-      # It is fundamentally incompatible with .NET 8:
-      #   - constants / resources / anti-*  → TypeInitializationException (.cctor injection)
-      #   - rename                          → BadImageFormatException (invalid metadata)
-      #   - ctrl flow                       → BadImageFormatException (enclosing type errors)
-      # Consider migrating to a .NET 8-compatible obfuscator if obfuscation is required.
+      # Obfuscate DLLs using Obfuscar (.NET 8 compatible)
       # ────────────────────────────────────────────────────────
+      - name: Install Obfuscar
+        run: dotnet tool install --global Obfuscar.GlobalTool
+        
+      - name: Run Obfuscation
+        run: |
+          # Obfuscar processes the DLLs in the Release folders based on the XML config.
+          obfuscar.console obfuscar.xml -V InPath="Kei.Base/bin/Release/net8.0" -V OutPath="Kei.Base/bin/Release/net8.0"
+          obfuscar.console obfuscar.xml -V InPath="Kei.Base.Domain/bin/Release/net8.0" -V OutPath="Kei.Base.Domain/bin/Release/net8.0"
+          obfuscar.console obfuscar.xml -V InPath="Kei.Base.Extensions/bin/Release/net8.0" -V OutPath="Kei.Base.Extensions/bin/Release/net8.0"
+          obfuscar.console obfuscar.xml -V InPath="Kei.Base.Helper/bin/Release/net8.0" -V OutPath="Kei.Base.Helper/bin/Release/net8.0"
 
       - name: Bump patch version
         shell: pwsh
