@@ -31,6 +31,16 @@ namespace Kei.Base.Domain.Services
         OperationResult<TEntity> GetById(params object[] keyValues);
         Task<OperationResult<TEntity>> GetByIdAsync(params object[] keyValues);
 
+        /// <summary>
+        /// Retrieves a paginated list of entities using cursor-based (keyset) pagination.
+        /// </summary>
+        Task<OperationResult<Kei.Base.Models.CursorPaginationResult<TEntity>>> GetCursorPagedAsync<TCursor>(
+            System.Linq.Expressions.Expression<Func<TEntity, bool>>? cursorPredicate,
+            System.Linq.Expressions.Expression<Func<TEntity, TCursor>> orderBy,
+            int limit,
+            Func<TEntity, object> cursorSelector,
+            System.Collections.Generic.List<string>? includeProperties = null);
+
         TEntity GetFirstByFilterData(
             List<FilterCondition<TEntity>> conditions = null,
             List<string> includeProperties = null,

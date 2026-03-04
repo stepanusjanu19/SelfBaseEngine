@@ -57,8 +57,26 @@ namespace Kei.Base.Domain.Repository
         IEnumerable<TOut> MapSelect<TIn, TOut>(List<TIn> list);
         OperationResult<TEntity> GetById(params object[] keyValues);
         Task<OperationResult<TEntity>> GetByIdAsync(params object[] keyValues);
-        TEntity GetFirstByFilterData( List<FilterCondition<TEntity>> conditions = null, List<string> includeProperties = null, params object[] keyValues);
-        OperationResult<TEntity> GetByFilterData(List<FilterCondition<TEntity>> conditions = null, List<string> includeProperties = null,params object[] keyValues);
+
+        /// <summary>
+        /// Retrieves a paginated list of entities using cursor-based (keyset) pagination for O(log n) performance.
+        /// </summary>
+        /// <typeparam name="TCursor">The type of the cursor property (e.g., int, Guid, Ulid).</typeparam>
+        /// <param name="cursorPredicate">The expression to filter records strictly after the given cursor.</param>
+        /// <param name="orderBy">The expression to order the records by the cursor property.</param>
+        /// <param name="limit">The maximum number of records to return.</param>
+        /// <param name="cursorSelector">A compiled function to extract the cursor from the last item.</param>
+        /// <param name="includeProperties">Navigation properties to include.</param>
+        /// <returns>A cursor pagination result containing the records and the next cursor.</returns>
+        Task<OperationResult<Kei.Base.Models.CursorPaginationResult<TEntity>>> GetCursorPagedAsync<TCursor>(
+            Expression<Func<TEntity, bool>>? cursorPredicate,
+            Expression<Func<TEntity, TCursor>> orderBy,
+            int limit,
+            Func<TEntity, object> cursorSelector,
+            List<string>? includeProperties = null);
+
+        TEntity GetFirstByFilterData(List<FilterCondition<TEntity>> conditions = null, List<string> includeProperties = null, params object[] keyValues);
+        OperationResult<TEntity> GetByFilterData(List<FilterCondition<TEntity>> conditions = null, List<string> includeProperties = null, params object[] keyValues);
         OperationResult<TResult> GetByFilterDataProjected<TResult>(
             List<FilterCondition<TEntity>> conditions = null,
             List<string> includeProperties = null,
@@ -88,7 +106,7 @@ namespace Kei.Base.Domain.Repository
         Task<OperationResult<TEntity>> Update(TEntity entity, Expression<Func<TEntity, bool>> predicate = null);
         Task<OperationResult> Delete(params object[] keyValues);
         Task<OperationResult> Delete(TEntity entity);
-        
+
         #region Transaction Begin & Batch
         Task<OperationResult<List<TEntity>>> Add(List<TEntity> entities);
         Task<OperationResult> Delete(List<TEntity> entities);

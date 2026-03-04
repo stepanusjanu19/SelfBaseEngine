@@ -75,18 +75,26 @@ namespace Kei.Base.Domain.Services
                     throw new ArgumentOutOfRangeException(nameof(mode), "Invalid pagination mode.");
             }
         }
-        
+
         public virtual List<TDestination> GetMappedList<TDestination>(
             Expression<Func<TEntity, bool>> predicate = null)
         {
             return _repository.GetMappedList<TDestination>(predicate);
         }
-        
+
         public virtual OperationResult<TEntity> GetById(params object[] keyValues)
             => _repository.GetById(keyValues);
 
         public virtual Task<OperationResult<TEntity>> GetByIdAsync(params object[] keyValues)
             => _repository.GetByIdAsync(keyValues);
+
+        public virtual Task<OperationResult<Kei.Base.Models.CursorPaginationResult<TEntity>>> GetCursorPagedAsync<TCursor>(
+            System.Linq.Expressions.Expression<Func<TEntity, bool>>? cursorPredicate,
+            System.Linq.Expressions.Expression<Func<TEntity, TCursor>> orderBy,
+            int limit,
+            Func<TEntity, object> cursorSelector,
+            System.Collections.Generic.List<string>? includeProperties = null)
+            => _repository.GetCursorPagedAsync(cursorPredicate, orderBy, limit, cursorSelector, includeProperties);
 
         public virtual TEntity GetFirstByFilterData(
             List<FilterCondition<TEntity>> conditions = null,
@@ -190,7 +198,7 @@ namespace Kei.Base.Domain.Services
 
         public virtual DbParameter CreateParameter(string name, object? value, DbType? type = null)
             => _repository.CreateParameter(name, value, type);
-        
+
         public virtual List<FilterCondition<TEntity>> BuildFilters(List<FilterCondition<TEntity>> userFilters = null)
             => _repository.BuildFilters(userFilters);
 

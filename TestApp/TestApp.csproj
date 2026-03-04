@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Kei.Base" Version="1.0.8" />
+    <PackageReference Include="Kei.Base.Domain" Version="1.0.8" />
+    <PackageReference Include="Kei.Base.Extensions" Version="1.0.8" />
+    <PackageReference Include="Kei.Base.Helper" Version="1.0.8" />
+  </ItemGroup>
+</Project>

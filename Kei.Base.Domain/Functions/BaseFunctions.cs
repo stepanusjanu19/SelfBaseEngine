@@ -250,6 +250,56 @@ namespace Kei.Base.Domain.Functions
                 : OperationResult<TEntity>.Fail("Entity not found.");
         }
 
+        public virtual async Task<OperationResult<Kei.Base.Models.CursorPaginationResult<TEntity>>> GetCursorPagedAsync<TCursor>(
+            Expression<Func<TEntity, bool>>? cursorPredicate,
+            Expression<Func<TEntity, TCursor>> orderBy,
+            int limit,
+            Func<TEntity, object> cursorSelector,
+            List<string>? includeProperties = null)
+        {
+            IQueryable<TEntity> query = _dbSet.AsNoTracking();
+
+            if (includeProperties != null)
+            {
+                foreach (var include in includeProperties)
+                    query = query.Include(include);
+            }
+
+            if (cursorPredicate != null)
+            {
+                query = query.Where(cursorPredicate);
+            }
+
+            // Fetch limit + 1 to determine if there's a next page
+            var dataList = await query
+                .OrderBy(orderBy)
+                .Take(limit + 1)
+                .ToListAsync();
+
+            bool hasNextPage = dataList.Count > limit;
+
+            if (hasNextPage)
+            {
+                dataList.RemoveAt(limit);
+            }
+
+            object? nextCursor = null;
+            if (dataList.Any())
+            {
+                var lastItem = dataList.Last();
+                nextCursor = cursorSelector(lastItem);
+            }
+
+            var result = new Kei.Base.Models.CursorPaginationResult<TEntity>
+            {
+                Data = dataList,
+                NextCursor = nextCursor,
+                HasNextPage = hasNextPage
+            };
+
+            return OperationResult<Kei.Base.Models.CursorPaginationResult<TEntity>>.Ok(result);
+        }
+
         public virtual TResult GetProjectedJoinByFilter<TJoin, TKey, TResult>(
             List<FilterCondition<TEntity>> conditions,
             Expression<Func<TEntity, TKey>> outerKeySelector,
