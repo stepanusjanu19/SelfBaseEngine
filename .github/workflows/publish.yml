@@ -66,24 +66,24 @@ jobs:
           Write-Host ".NET Core:    $netcorePath"
           Write-Host "ASP.NET Core: $aspnetPath"
 
-          $crproj = @"
-<?xml version="1.0" encoding="utf-8" ?>
-<project outputDir="$outDir" baseDir="$baseDir">
-  <rule pattern="true" preset="maximum" inherit="false">
-    <protection id="rename" />
-    <protection id="ctrl flow" />
-    <protection id="resources" />
-    <protection id="constants" />
-  </rule>
-  <module path="Kei.Base.dll" />
-  <module path="Kei.Base.Domain.dll" />
-  <module path="Kei.Base.Helper.dll" />
-  <module path="Kei.Base.Extensions.dll" />
-  <probePath>$netcorePath</probePath>
-  <probePath>$aspnetPath</probePath>
-</project>
-"@
-          $crproj | Out-File -FilePath confuser.crproj -Encoding UTF8
+          $xml = @(
+            "<?xml version=`"1.0`" encoding=`"utf-8`" ?>",
+            "<project outputDir=`"$outDir`" baseDir=`"$baseDir`">",
+            "  <rule pattern=`"true`" preset=`"maximum`" inherit=`"false`">",
+            "    <protection id=`"rename`" />",
+            "    <protection id=`"ctrl flow`" />",
+            "    <protection id=`"resources`" />",
+            "    <protection id=`"constants`" />",
+            "  </rule>",
+            "  <module path=`"Kei.Base.dll`" />",
+            "  <module path=`"Kei.Base.Domain.dll`" />",
+            "  <module path=`"Kei.Base.Helper.dll`" />",
+            "  <module path=`"Kei.Base.Extensions.dll`" />",
+            "  <probePath>$netcorePath</probePath>",
+            "  <probePath>$aspnetPath</probePath>",
+            "</project>"
+          )
+          $xml | Set-Content -Path confuser.crproj -Encoding UTF8
           Write-Host "=== confuser.crproj ==="
           Get-Content confuser.crproj
 
