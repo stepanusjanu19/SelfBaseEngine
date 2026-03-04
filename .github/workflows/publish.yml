@@ -156,10 +156,12 @@ jobs:
       - name: Pack NuGet packages
         shell: pwsh
         run: |
-          dotnet pack Kei.Base\Kei.Base.csproj                              -c Release --no-build -o .\artifacts
-          dotnet pack Kei.Base.Domain\Kei.Base.Domain.csproj                -c Release --no-build -o .\artifacts
-          dotnet pack Kei.Base.Extensions\Kei.Base.Extensions.csproj        -c Release --no-build -o .\artifacts
-          dotnet pack Kei.Base.Helper\Kei.Base.Helper.csproj                -c Release --no-build -o .\artifacts
+          $v = $env:PKG_VERSION
+          Write-Host "Packing version: $v"
+          dotnet pack Kei.Base\Kei.Base.csproj               -c Release --no-build -o .\artifacts /p:Version=$v
+          dotnet pack Kei.Base.Domain\Kei.Base.Domain.csproj  -c Release --no-build -o .\artifacts /p:Version=$v
+          dotnet pack Kei.Base.Extensions\Kei.Base.Extensions.csproj -c Release --no-build -o .\artifacts /p:Version=$v
+          dotnet pack Kei.Base.Helper\Kei.Base.Helper.csproj  -c Release --no-build -o .\artifacts /p:Version=$v
 
       - name: Publish to NuGet
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
