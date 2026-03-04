@@ -3,7 +3,6 @@
   <rule pattern="true" preset="none" inherit="false">
     <protection id="rename" />
     <protection id="ctrl flow" />
-    <protection id="resources" />
   </rule>
 
   <!-- All project DLLs to obfuscate -->
