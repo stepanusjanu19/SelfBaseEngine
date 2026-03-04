@@ -35,100 +35,15 @@ jobs:
       - name: Build solution
         run: dotnet build Kei.Base/Kei.Base.sln --configuration Release --no-restore
 
-      # Copy sibling DLLs into the Kei.Base output so ConfuserEx finds them in one baseDir
-      - name: Copy project DLLs for obfuscation
-        shell: pwsh
-        run: |
-          Copy-Item Kei.Base.Domain\bin\Release\net8.0\Kei.Base.Domain.dll       Kei.Base\bin\Release\net8.0\
-          Copy-Item Kei.Base.Extensions\bin\Release\net8.0\Kei.Base.Extensions.dll Kei.Base\bin\Release\net8.0\
-          Copy-Item Kei.Base.Helper\bin\Release\net8.0\Kei.Base.Helper.dll        Kei.Base\bin\Release\net8.0\
 
-      # Download ConfuserEx CLI (runs on .NET Framework on Windows — no Mono needed)
-      - name: Download ConfuserEx
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://github.com/mkaring/ConfuserEx/releases/download/v1.6.0/ConfuserEx-CLI.zip" -OutFile confuserex.zip
-          Expand-Archive -Path confuserex.zip -DestinationPath confuserex -Force
-          Write-Host "ConfuserEx contents:"
-          Get-ChildItem confuserex
-
-      # Generate confuser.crproj dynamically using actual Windows paths
-      - name: Generate confuser.crproj
-        shell: pwsh
-        run: |
-          $baseDir = "${{ github.workspace }}\Kei.Base\bin\Release\net8.0"
-          $outDir  = "${{ github.workspace }}\confused"
-
-          # Discover .NET 8 ASP.NET Core path for probe (Windows layout)
-          $aspnetBase = "C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App"
-          $aspnetVer  = (Get-ChildItem $aspnetBase | Where-Object Name -Like "8.*" | Sort-Object Name -Descending | Select-Object -First 1).Name
-          $aspnetPath = "$aspnetBase\$aspnetVer"
-
-          $netcoreBase = "C:\Program Files\dotnet\shared\Microsoft.NETCore.App"
-          $netcoreVer  = (Get-ChildItem $netcoreBase | Where-Object Name -Like "8.*" | Sort-Object Name -Descending | Select-Object -First 1).Name
-          $netcorePath = "$netcoreBase\$netcoreVer"
-
-          # Domain bin has EF Core 9.0.6; Helper bin has EF Core 8.x — both needed
-          $domainBin = "${{ github.workspace }}\Kei.Base.Domain\bin\Release\net8.0"
-          $helperBin = "${{ github.workspace }}\Kei.Base.Helper\bin\Release\net8.0"
-
-          # NuGet cache fallback for EF Core 9.0.6
-          $nugetPkgs  = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { "$env:USERPROFILE\.nuget\packages" }
-          $efCore9    = "$nugetPkgs\microsoft.entityframeworkcore\9.0.6\lib\net8.0"
-          $efRelat9   = "$nugetPkgs\microsoft.entityframeworkcore.relational\9.0.6\lib\net8.0"
-
-          Write-Host "baseDir:      $baseDir"
-          Write-Host "outDir:       $outDir"
-          Write-Host ".NET Core:    $netcorePath"
-          Write-Host "ASP.NET Core: $aspnetPath"
-          Write-Host "Domain bin:   $domainBin"
-          Write-Host "EF Core 9:    $efCore9"
-
-          $xml = @(
-            "<?xml version=`"1.0`" encoding=`"utf-8`" ?>",
-            "<project outputDir=`"$outDir`" baseDir=`"$baseDir`">",
-            "  <rule pattern=`"true`" preset=`"maximum`" inherit=`"false`">",
-            "    <protection id=`"rename`" />",
-            "    <protection id=`"ctrl flow`" />",
-            "    <protection id=`"resources`" />",
-            "    <!-- constants removed: injects module initializer that causes TypeInitializationException on consumer load -->",
-            "  </rule>",
-            "  <module path=`"Kei.Base.dll`" />",
-            "  <module path=`"Kei.Base.Domain.dll`" />",
-            "  <module path=`"Kei.Base.Helper.dll`" />",
-            "  <module path=`"Kei.Base.Extensions.dll`" />",
-            "  <probePath>$netcorePath</probePath>",
-            "  <probePath>$aspnetPath</probePath>",
-            "  <probePath>$domainBin</probePath>",
-            "  <probePath>$helperBin</probePath>",
-            "  <probePath>$efCore9</probePath>",
-            "  <probePath>$efRelat9</probePath>",
-            "</project>"
-          )
-          $xml | Set-Content -Path confuser.crproj -Encoding UTF8
-          Write-Host "=== confuser.crproj ==="
-          Get-Content confuser.crproj
-
-      # Run ConfuserEx via dotnet (Windows native — no Mono)
-      - name: Obfuscate assemblies
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path confused | Out-Null
-          
-          # Run ConfuserEx directly — it's a .NET Framework exe, not a dotnet app
-          .\confuserex\Confuser.CLI.exe -n confuser.crproj
-          
-          Write-Host "=== Obfuscated output ==="
-          Get-ChildItem confused\
-
-      # Replace originals with obfuscated DLLs
-      - name: Replace DLLs with obfuscated versions
-        shell: pwsh
-        run: |
-          Copy-Item confused\Kei.Base.dll            Kei.Base\bin\Release\net8.0\ -Force
-          Copy-Item confused\Kei.Base.Domain.dll     Kei.Base.Domain\bin\Release\net8.0\ -Force
-          Copy-Item confused\Kei.Base.Helper.dll     Kei.Base.Helper\bin\Release\net8.0\ -Force
-          Copy-Item confused\Kei.Base.Extensions.dll Kei.Base.Extensions\bin\Release\net8.0\ -Force
+      # ────────────────────────────────────────────────────────
+      # NOTE: ConfuserEx 1.6 obfuscation has been disabled.
+      # It is fundamentally incompatible with .NET 8:
+      #   - constants / resources / anti-*  → TypeInitializationException (.cctor injection)
+      #   - rename                          → BadImageFormatException (invalid metadata)
+      #   - ctrl flow                       → BadImageFormatException (enclosing type errors)
+      # Consider migrating to a .NET 8-compatible obfuscator if obfuscation is required.
+      # ────────────────────────────────────────────────────────
 
       - name: Bump patch version
         shell: pwsh
