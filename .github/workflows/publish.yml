@@ -84,7 +84,7 @@ jobs:
             "    <protection id=`"rename`" />",
             "    <protection id=`"ctrl flow`" />",
             "    <protection id=`"resources`" />",
-            "    <protection id=`"constants`" />",
+            "    <!-- constants removed: injects module initializer that causes TypeInitializationException on consumer load -->",
             "  </rule>",
             "  <module path=`"Kei.Base.dll`" />",
             "  <module path=`"Kei.Base.Domain.dll`" />",
