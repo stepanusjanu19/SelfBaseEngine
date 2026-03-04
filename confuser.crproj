@@ -4,7 +4,6 @@
     <protection id="rename" />
     <protection id="ctrl flow" />
     <protection id="resources" />
-    <protection id="constants" />
   </rule>
 
   <!-- All project DLLs to obfuscate -->
@@ -21,7 +20,7 @@
       2. .NET Core App ref pack      (additional ref DLLs)
       3. ASP.NET Core App runtime    (Microsoft.AspNetCore.*, Microsoft.AspNetCore.Mvc.Core, etc.)
   -->
-  <probePath>DOTNET_RUNTIME_PATH</probePath>
-  <probePath>DOTNET_REF_PATH</probePath>
-  <probePath>ASPNETCORE_RUNTIME_PATH</probePath>
+  <probePath>/usr/local/share/dotnet/shared/Microsoft.NETCore.App/8.0.17</probePath>
+  <probePath>/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Ref/8.0.17/ref/net8.0</probePath>
+  <probePath>/usr/local/share/dotnet/shared/Microsoft.AspNetCore.App/8.0.17</probePath>
 </project>
