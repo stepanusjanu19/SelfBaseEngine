@@ -329,7 +329,7 @@ namespace Kei.Base.Domain.Functions
 
             if (!string.IsNullOrEmpty(cursor))
             {
-                var sql = $"SELECT * FROM \"{tableName}\" WHERE \"{cursorColumn}\" {comparator} @p0 ORDER BY \"{cursorColumn}\" {direction} LIMIT @p1";
+                var sql = $"SELECT * FROM \"{tableName}\" WHERE \"{cursorColumn}\" {comparator} {{0}} ORDER BY \"{cursorColumn}\" {direction} LIMIT {{1}}";
                 items = await _dbSet
                     .FromSqlRaw(sql, cursor, take)
                     .AsNoTracking()
@@ -337,7 +337,7 @@ namespace Kei.Base.Domain.Functions
             }
             else
             {
-                var sql = $"SELECT * FROM \"{tableName}\" ORDER BY \"{cursorColumn}\" {direction} LIMIT @p0";
+                var sql = $"SELECT * FROM \"{tableName}\" ORDER BY \"{cursorColumn}\" {direction} LIMIT {{0}}";
                 items = await _dbSet
                     .FromSqlRaw(sql, take)
                     .AsNoTracking()
