@@ -41,6 +41,20 @@ namespace Kei.Base.Domain.Services
             Func<TEntity, object> cursorSelector,
             System.Collections.Generic.List<string>? includeProperties = null);
 
+        /// <summary>
+        /// Simplified cursor-based pagination using raw SQL for reliable string-based cursor comparison.
+        /// Resolves EF Core LINQ translation issues with Ulid/custom ValueConverter types.
+        /// </summary>
+        /// <param name="cursor">The cursor value (string representation of the last item's Id). Null for the first page.</param>
+        /// <param name="limit">The maximum number of records to return.</param>
+        /// <param name="cursorColumn">The column name to use for cursor comparison. Defaults to "Id".</param>
+        /// <param name="orderDirection">Sort direction — "ASC" or "DESC". Defaults to "ASC".</param>
+        Task<OperationResult<Kei.Base.Models.CursorPaginationResult<TEntity>>> GetCursorPagedAsync(
+            string? cursor,
+            int limit,
+            string cursorColumn = "Id",
+            string orderDirection = "ASC");
+
         TEntity GetFirstByFilterData(
             List<FilterCondition<TEntity>> conditions = null,
             List<string> includeProperties = null,

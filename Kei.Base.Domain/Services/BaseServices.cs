@@ -96,6 +96,13 @@ namespace Kei.Base.Domain.Services
             System.Collections.Generic.List<string>? includeProperties = null)
             => _repository.GetCursorPagedAsync(cursorPredicate, orderBy, limit, cursorSelector, includeProperties);
 
+        public virtual Task<OperationResult<Kei.Base.Models.CursorPaginationResult<TEntity>>> GetCursorPagedAsync(
+            string? cursor,
+            int limit,
+            string cursorColumn = "Id",
+            string orderDirection = "ASC")
+            => _repository.GetCursorPagedAsync(cursor, limit, cursorColumn, orderDirection);
+
         public virtual TEntity GetFirstByFilterData(
             List<FilterCondition<TEntity>> conditions = null,
             List<string> includeProperties = null,

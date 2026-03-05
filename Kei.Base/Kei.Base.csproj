@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>1.0.10</Version>
+    <Version>1.0.11</Version>
     <Authors>xxxxxxxx</Authors>
     <Description>Base Engine for .NET Core</Description>
     <PackageTags>include repository service efcore for many all rdbms</PackageTags>

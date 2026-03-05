@@ -300,6 +300,77 @@ namespace Kei.Base.Domain.Functions
             return OperationResult<Kei.Base.Models.CursorPaginationResult<TEntity>>.Ok(result);
         }
 
+        /// <summary>
+        /// Retrieves a paginated list of entities using cursor-based (keyset) pagination
+        /// with raw SQL for reliable string-based cursor comparison.
+        /// This overload resolves EF Core LINQ translation issues with Ulid/custom types
+        /// by using parameterized SQL directly against the database.
+        /// </summary>
+        /// <param name="cursor">The cursor value (string representation of the last item's Id). Null for the first page.</param>
+        /// <param name="limit">The maximum number of records to return.</param>
+        /// <param name="cursorColumn">The column name to use for cursor comparison. Defaults to "Id".</param>
+        /// <param name="orderDirection">Sort direction — "ASC" or "DESC". Defaults to "ASC".</param>
+        /// <returns>A cursor pagination result containing the records and the next cursor.</returns>
+        public virtual async Task<OperationResult<CursorPaginationResult<TEntity>>> GetCursorPagedAsync(
+            string? cursor,
+            int limit,
+            string cursorColumn = "Id",
+            string orderDirection = "ASC")
+        {
+            // Resolve the table name from EF Core model metadata
+            var entityType = _context.Model.FindEntityType(typeof(TEntity));
+            var tableName = entityType?.GetTableName() ?? typeof(TEntity).Name + "s";
+
+            var take = limit + 1;
+            var direction = orderDirection.Equals("DESC", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
+            var comparator = direction == "ASC" ? ">" : "<";
+
+            List<TEntity> items;
+
+            if (!string.IsNullOrEmpty(cursor))
+            {
+                var sql = $"SELECT * FROM \"{tableName}\" WHERE \"{cursorColumn}\" {comparator} @p0 ORDER BY \"{cursorColumn}\" {direction} LIMIT @p1";
+                items = await _dbSet
+                    .FromSqlRaw(sql, cursor, take)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+            else
+            {
+                var sql = $"SELECT * FROM \"{tableName}\" ORDER BY \"{cursorColumn}\" {direction} LIMIT @p0";
+                items = await _dbSet
+                    .FromSqlRaw(sql, take)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+
+            bool hasNextPage = items.Count > limit;
+
+            if (hasNextPage)
+            {
+                items.RemoveAt(items.Count - 1);
+            }
+
+            // Extract the cursor value from the last item via reflection
+            string? nextCursor = null;
+            if (items.Any())
+            {
+                var lastItem = items.Last();
+                var prop = typeof(TEntity).GetProperty(cursorColumn,
+                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                nextCursor = prop?.GetValue(lastItem)?.ToString();
+            }
+
+            var result = new CursorPaginationResult<TEntity>
+            {
+                Data = items,
+                NextCursor = nextCursor,
+                HasNextPage = hasNextPage
+            };
+
+            return OperationResult<CursorPaginationResult<TEntity>>.Ok(result);
+        }
+
         public virtual TResult GetProjectedJoinByFilter<TJoin, TKey, TResult>(
             List<FilterCondition<TEntity>> conditions,
             Expression<Func<TEntity, TKey>> outerKeySelector,
