@@ -321,6 +321,15 @@ namespace Kei.Base.Domain.Functions
             var entityType = _context.Model.FindEntityType(typeof(TEntity));
             var tableName = entityType?.GetTableName() ?? typeof(TEntity).Name + "s";
 
+            // Validate and parse the cursor column to prevent SQL injection
+            var modelProperty = entityType?.FindProperty(cursorColumn);
+            if (modelProperty == null)
+            {
+                throw new ArgumentException($"Invalid cursor column '{cursorColumn}' for entity type '{typeof(TEntity).Name}'.", nameof(cursorColumn));
+            }
+            // Gets the actual mapped db column name (e.g., handles snake_case or specific [Column("name")])
+            var safeDbColumnName = modelProperty.GetColumnName() ?? cursorColumn;
+
             var take = limit + 1;
             var direction = orderDirection.Equals("DESC", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
             var comparator = direction == "ASC" ? ">" : "<";
@@ -329,7 +338,7 @@ namespace Kei.Base.Domain.Functions
 
             if (!string.IsNullOrEmpty(cursor))
             {
-                var sql = $"SELECT * FROM \"{tableName}\" WHERE \"{cursorColumn}\" {comparator} {{0}} ORDER BY \"{cursorColumn}\" {direction} LIMIT {{1}}";
+                var sql = $"SELECT * FROM \"{tableName}\" WHERE \"{safeDbColumnName}\" {comparator} {{0}} ORDER BY \"{safeDbColumnName}\" {direction} LIMIT {{1}}";
                 items = await _dbSet
                     .FromSqlRaw(sql, cursor, take)
                     .AsNoTracking()
@@ -337,7 +346,7 @@ namespace Kei.Base.Domain.Functions
             }
             else
             {
-                var sql = $"SELECT * FROM \"{tableName}\" ORDER BY \"{cursorColumn}\" {direction} LIMIT {{0}}";
+                var sql = $"SELECT * FROM \"{tableName}\" ORDER BY \"{safeDbColumnName}\" {direction} LIMIT {{0}}";
                 items = await _dbSet
                     .FromSqlRaw(sql, take)
                     .AsNoTracking()
